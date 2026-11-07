@@ -5,6 +5,17 @@ __pycache__/
 
 # C extensions
 *.so
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+
+ml/data/
+*-backups/
+*.bak
+fp-info-cache
+
 
 # Distribution / packaging
 .Python
