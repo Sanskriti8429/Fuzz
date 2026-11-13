@@ -1,29 +1,23 @@
 import difflib
 from pathlib import Path
-
 import numpy as np
 from scipy.io import loadmat
 from scipy.signal import resample_poly
 from sklearn.metrics import confusion_matrix
 from xgboost import XGBClassifier
-
 from arc_features import features
 
 FOLDER = Path("ml/data/lorraine")
 CACHE_DIR = Path("ml/data/lorraine_cache")
 FERRACUTI = Path("ml/data/ferracuti/Datasets/dataset_2classes_20ms_10kHz.mat")
 
-WIN_HI = 20_000        # 20 ms at 1 MS/s
-DOWN = 100             # 1 MS/s -> 10 kHz
-WIN_LO = 200           # 20 ms at 10 kHz
-USE_ANTIALIAS = False  # False = plain subsampling (delete ml/data/lorraine_cache if you change this)
-
-# Labelling rules. Edit freely: the raw files are not re-read.
-ARC_V = 5.0     # arc-voltage RMS above this (V): a fault is inserted
-QUIET_V = 1.0   # arc-voltage RMS below this (V): no fault
-MIN_I = 0.3     # current RMS below this (A): the appliance is not conducting
-
-# (name, arc-voltage file C2, line-current file C3)
+WIN_HI = 20_000
+DOWN = 100
+WIN_LO = 200
+USE_ANTIALIAS = False
+ARC_V = 5.0
+QUIET_V = 1.0
+MIN_I = 0.3
 RECORDINGS = [
     ("drill550", "C2_drill550_carbonizedpath", "C3_drill550_carbonizedpath"),
     ("drill_titan", "C2_drill_titan__opencontact", "C3_drill_titan_opencontact"),
@@ -37,7 +31,7 @@ RECORDINGS = [
     ("Res7.9A", "C2_Res7.9A_opencontact", "C3_Res7.9A_opencontact"),
     ("vacuum1200", "C2_vacumcleaner1200_carbonizedpath", "C3_vacuumcleaner1200_carbonizedpath"),
     ("vacuum_a", "C2_vacumclearner_opencontact", "C3_vacuumcleaner_opencontact"),
-    ("vacuum_b", "C2_vacuumcleaner2_opencontact", "C3_vacuumcleanerbis_opencontact"),  # guessed pair
+    ("vacuum_b", "C2_vacuumcleaner2_opencontact", "C3_vacuumcleanerbis_opencontact"),
 ]
 
 ALL_STEMS = sorted(p.stem for p in FOLDER.glob("*.dat"))

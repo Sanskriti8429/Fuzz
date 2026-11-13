@@ -97,7 +97,7 @@ docs/             Calculations report, schematic PDF
 - [ ] Models trained, compared and evaluated across datasets
 - [ ] ESP32 fusion logic
 - [ ] Backend, ESP32 simulator, operator dashboard and client view
-- [ ] Calculations report updated to match the schematic
+- [ ] Calculations report
 - [ ] Demo video
 
 ## Datasets
