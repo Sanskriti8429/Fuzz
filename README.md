@@ -114,11 +114,8 @@ No public dataset contains distance, so distance labels come from the simulated 
 
 ## Results
 
-- **Fault state:** TBD
-- **Appliance identification:** TBD
-- **Distance estimation (mean absolute error in metres):** TBD
-
-Numbers are filled in only after the evaluation scripts have been run.
+- **Arc classifier, same-dataset (Ferracuti, 20 ms windows at 10 kHz, XGBoost):** 98.4% accuracy, 99.4% of arc windows detected, 2.1% false alarms.
+- **Arc classifier, cross-dataset (trained on Ferracuti, tested on Lorraine, 457 arc and 1104 normal windows):** 68.9% of arc windows detected with 4.4% false alarms when downsampling with an anti-alias filter, or 78.8% detected with 9.4% false alarms with plain subsampling. Carbonized-path arcs on resistive and drill loads are detected at about 98%. Vacuum cleaner and open-contact arcs are much weaker, and the vacuum cleaner causes most false alarms.
 
 ## Limitations
 
@@ -128,3 +125,4 @@ Numbers are filled in only after the evaluation scripts have been run.
 - **Dataset domain gap.** Public datasets were recorded at the appliance, not through a long cable, and with different equipment from Fuzz's sensors.
 - **Rule-based fusion.** Fusion thresholds come from calculation and simulation, not from field data.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
+- Single-channel current classifiers did not transfer well across datasets, so detection relies on combining several sensors.
