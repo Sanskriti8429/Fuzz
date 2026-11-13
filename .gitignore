@@ -15,7 +15,7 @@ ml/data/
 *-backups/
 *.bak
 fp-info-cache
-
+ml/figures/
 
 # Distribution / packaging
 .Python
