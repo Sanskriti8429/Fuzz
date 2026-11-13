@@ -39,12 +39,14 @@ The AI is what turns "something is wrong" into "something is wrong, probably her
 - **Appliances at risk:** several appliances can run on one branch, so this is a multi-label problem.
 - **Probable distance:** estimated distance in metres from the board along the wiring, reported with a confidence range (for example "about 10 m, likely 8 to 12 m").
 
-How the training data is built:
+How the training data will be built (planned, not yet implemented):
 
 1. Real appliance and arc current signatures come from public datasets (see [Datasets](#datasets)).
 2. Multi-appliance cases are made by adding single-appliance currents together (Kirchhoff's current law), as in the NILM literature.
 3. Those signals are passed through a simulated model of Fuzz's own sensing circuits and a cable model of 1 to 20 m. This produces the features Fuzz's ESP32 would actually see, together with distance labels.
 4. Models are trained on those features and tested across datasets.
+
+The Ferracuti windows contain the absolute value of the current, not a signed waveform, so how they pass through the sensing-circuit model is still to be decided.
 
 Models to compare:
 
@@ -83,16 +85,19 @@ backend/          Inference server (planned)
 dashboard/        Operator dashboard and client view (planned)
 demo/             Demo video scripts
 docs/             Calculations report, schematic PDF
+requirements.txt  Python packages
 ```
 
 ## Status
 
 - [x] Sensing strategy and system design
-- [x] Full-system schematic in KiCad (ERC run, 0 violations)
+- [x] Full-system schematic in KiCad (ERC run, 0 violations, with some checks ignored)
 - [x] Exported schematic PDF and BOM
 - [ ] Analog stages simulated in SPICE and component values confirmed
 - [ ] Cable and arc-source model for the distance data
-- [ ] Datasets downloaded and explored
+- [x] Arc datasets (Ferracuti, Lorraine) downloaded and explored
+- [ ] Appliance datasets (PLAID, COOLL) downloaded and explored
+- [x] Arc classifier baseline with same-dataset and cross-dataset evaluation
 - [ ] Training-data generation pipeline
 - [ ] Models trained, compared and evaluated across datasets
 - [ ] ESP32 fusion logic
@@ -102,10 +107,10 @@ docs/             Calculations report, schematic PDF
 
 ## Datasets
 
-Datasets are not stored in this repo. They are downloaded locally into `ml/data/`. Licences are to be confirmed before use.
+Datasets are not stored in this repo. They are downloaded locally into `ml/data/`. Ferracuti and Lorraine are CC BY 4.0, so credit the authors. Licences for PLAID, COOLL and the TI set are still to be confirmed.
 
-- **Arc faults (main):** Ferracuti et al., 2025. Series arc current signatures from 13 load types, 230 V / 50 Hz, IEC 62606. [doi.org/10.5281/zenodo.15279701](https://doi.org/10.5281/zenodo.15279701)
-- **Arc faults (cross-dataset test):** Series AC arc fault data from a 230 V / 50 Hz domestic network, University of Lorraine and Huaqiao University. [zenodo.org/record/3997337](https://zenodo.org/record/3997337)
+- **Arc faults (main):** Ferracuti et al., 2025. Series arc current signatures from 13 load types, 230 V / 50 Hz, IEC 62606. Windows of absolute current, 5 to 50 ms at 10 to 100 kHz, with 2, 5 or 14 class labels. [doi.org/10.5281/zenodo.15279701](https://doi.org/10.5281/zenodo.15279701)
+- **Arc faults (cross-dataset test):** Series AC arc fault data from a 230 V / 50 Hz domestic network, University of Lorraine and Huaqiao University. Line current and arc voltage at 1 MS/s for 13 appliance and arc-type recordings. Arc labels come from the arc voltage. [zenodo.org/record/3997337](https://zenodo.org/record/3997337)
 - **Appliance identification (main):** PLAID, appliance voltage and current at 30 kHz, including aggregated recordings. Scientific Data, 2020, doi 10.1038/s41597-020-0389-7.
 - **Appliance identification (validation):** COOLL, 42 appliances sampled at 100 kHz. arXiv 1611.05803.
 - **Optional:** Texas Instruments `ac_arc_fault_log300`, for testing false alarms from masking loads such as dimmers and drills.
@@ -117,6 +122,8 @@ No public dataset contains distance, so distance labels come from the simulated 
 - **Arc classifier, same-dataset (Ferracuti, 20 ms windows at 10 kHz, XGBoost):** 98.4% accuracy, 99.4% of arc windows detected, 2.1% false alarms.
 - **Arc classifier, cross-dataset (trained on Ferracuti, tested on Lorraine, 457 arc and 1104 normal windows):** 68.9% of arc windows detected with 4.4% false alarms when downsampling with an anti-alias filter, or 78.8% detected with 9.4% false alarms with plain subsampling. Carbonized-path arcs on resistive and drill loads are detected at about 98%. Vacuum cleaner and open-contact arcs are much weaker, and the vacuum cleaner causes most false alarms.
 
+Windows are labelled as arc when the arc-voltage RMS exceeds 5 V and the appliance is conducting (current RMS above 0.3 A). The 457 arc windows include 47 low-voltage Res7.9A windows (arc voltage up to 5.9 V RMS) whose labels are doubtful and none of which were detected.
+
 ## Limitations
 
 - **Simulation only.** Nothing has been built or measured. Circuit values are confirmed by simulation, not on hardware.
@@ -124,5 +131,13 @@ No public dataset contains distance, so distance labels come from the simulated 
 - **Appliance guesses are probabilities.** With several appliances running, one can mask another. Results are reported with confidence and a confusion matrix.
 - **Dataset domain gap.** Public datasets were recorded at the appliance, not through a long cable, and with different equipment from Fuzz's sensors.
 - **Rule-based fusion.** Fusion thresholds come from calculation and simulation, not from field data.
+- **Single-channel current classifiers did not transfer well across datasets.** This motivates, but does not yet prove, the multi-sensor approach.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
-- Single-channel current classifiers did not transfer well across datasets, so detection relies on combining several sensors.
+
+## Getting started
+
+```
+python -m venv .venv
+.venv\Scripts\Activate.ps1   # or: source .venv/bin/activate
+pip install -r requirements.txt
+```
