@@ -2,12 +2,13 @@ import argparse, json, os, random, time, urllib.request
 from collections import deque
 from datetime import datetime, timezone
 
-LIM_RF = 0.8
-LIM_LEAK = 30.0
-LIM_DIDT = 1.0
-TEMP_WARN, TEMP_TRIP = 40.0, 80.0
-V_MIN, V_MAX = 207.0, 253.0
-WARN_AVG = 0.35
+# Trip limits used by the (simulated) ESP32 fusion rule
+LIM_RF = 0.8        # normalised RF detector level
+LIM_LEAK = 30.0     # leakage current, mA
+LIM_DIDT = 1.0      # normalised di/dt integrator level
+TEMP_WARN, TEMP_TRIP = 40.0, 80.0   # degrees C (score is 0 at 40 C and 1 at 80 C)
+V_MIN, V_MAX = 207.0, 253.0         # +-10% of 230 V
+WARN_AVG = 0.35     # a channel counts as raised when its 5-reading average passes 35% of its limit
 
 def ramp(t, start, rise):
     """0 before `start`, climbs linearly to 1 over `rise` seconds, then stays at 1."""
@@ -18,13 +19,14 @@ def reading(scenario, t, distance):
              didt=abs(random.gauss(0.03, 0.02)), temp_c=random.gauss(32.0, 0.3),
              volt=random.gauss(230.0, 1.5))
     if scenario == "arc":
+        # arcing starts at 10 s; the farther away, the weaker the RF level seen at the board
         k = ramp(t, 10, 30)
         strength = max(0.35, 1.0 - 0.025 * distance)
         r["rf"] += k * strength * random.uniform(0.5, 1.0)
         if k > 0.2 and random.random() < 0.6:
-            r["didt"] += k * random.uniform(0.3, 0.8)
+            r["didt"] += k * random.uniform(0.3, 0.8)          # arc flicker
         if k > 0.85 and random.random() < 0.1:
-            r["didt"] += random.uniform(0.6, 1.0)
+            r["didt"] += random.uniform(0.6, 1.0)              # occasional hard spike
         r["temp_c"] += 6 * k
     elif scenario == "leakage":
         r["leak_ma"] += 38 * ramp(t, 10, 25)
@@ -73,6 +75,31 @@ def post(url, payload):
     req = urllib.request.Request(url, json.dumps(payload).encode(), {"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5).read()
 
+def run(scenario, distance=10.0, appliance="heater", duration=60.0, unit="fuzz-01"):
+    """Generator: yields one telemetry payload per simulated second."""
+    appliance, app_feats, rf_rel = load_bank(appliance, distance)
+    tripped, t, warn_until = False, 0.0, -1.0
+    window = deque(maxlen=5)
+    while t <= duration:
+        r = reading(scenario, t, distance)
+        state = fuse(r, window, tripped)
+        if state == "WARNING":
+            warn_until = t + 10          # hold a warning for 10 s so it does not flicker
+        elif state == "NORMAL" and t < warn_until:
+            state = "WARNING"
+        tripped = tripped or state == "TRIP"
+        if tripped:                       # relay open: the circuit is dead
+            r.update(rf=0.0, leak_ma=0.0, didt=0.0, volt=0.0)
+        payload = dict(unit_id=unit, time=datetime.now(timezone.utc).isoformat(), state=state,
+                       relay="OPEN" if tripped else "CLOSED", **r,
+                       sim_truth=dict(scenario=scenario, distance_m=distance, appliance=appliance, t=t))
+        if app_feats and not tripped:
+            payload["appliance_features"] = app_feats
+            if scenario == "arc" and r["rf"] > 0.15:
+                payload["rf_rel_db"] = round(rf_rel + random.gauss(0, 1.0), 2)
+        yield payload
+        t += 1.0
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("scenario", choices=["normal", "arc", "leakage", "overheat", "surge"])
@@ -84,35 +111,14 @@ def main():
     p.add_argument("--url", default="http://127.0.0.1:5000/api/telemetry")
     a = p.parse_args()
 
-    appliance, app_feats, rf_rel = load_bank(a.appliance, a.distance)
-    if appliance:
-        print(f"load on the circuit: {appliance}")
-    tripped, t, warn_until = False, 0.0, -1.0
-    window = deque(maxlen=5)
-    while t <= a.duration:
-        r = reading(a.scenario, t, a.distance)
-        state = fuse(r, window, tripped)
-        if state == "WARNING":
-            warn_until = t + 10
-        elif state == "NORMAL" and t < warn_until:
-            state = "WARNING"
-        tripped = tripped or state == "TRIP"
-        if tripped:
-            r.update(rf=0.0, leak_ma=0.0, didt=0.0, volt=0.0)
-        payload = dict(unit_id=a.unit, time=datetime.now(timezone.utc).isoformat(), state=state,
-                       relay="OPEN" if tripped else "CLOSED", **r,
-                       sim_truth=dict(scenario=a.scenario, distance_m=a.distance, appliance=appliance))
-        if app_feats and not tripped:
-            payload["appliance_features"] = app_feats
-            if a.scenario == "arc" and r["rf"] > 0.15:
-                payload["rf_rel_db"] = round(rf_rel + random.gauss(0, 1.0), 2)
+    for payload in run(a.scenario, a.distance, a.appliance, a.duration, a.unit):
         post(a.url, payload)
-        print(f"t={t:5.1f}s  {state:8s} rf={r['rf']:.2f} leak={r['leak_ma']:5.1f}mA "
-              f"didt={r['didt']:.2f} temp={r['temp_c']:.1f}C volt={r['volt']:.0f}V")
+        t = payload["sim_truth"]["t"]
+        print(f"t={t:5.1f}s  {payload['state']:8s} rf={payload['rf']:.2f} leak={payload['leak_ma']:5.1f}mA "
+              f"didt={payload['didt']:.2f} temp={payload['temp_c']:.1f}C volt={payload['volt']:.0f}V")
         if t % 10 < 1:
             print("   ", json.loads(urllib.request.urlopen(a.url.replace("telemetry", "units")).read())[0]["message"])
         time.sleep(a.interval)
-        t += 1.0
 
 if __name__ == "__main__":
     main()

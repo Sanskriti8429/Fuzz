@@ -6,60 +6,65 @@
 <title>Fuzz home safety</title>
 <link rel="stylesheet" href="/s/style.css">
 <style>
-  body { max-width: 480px; margin: 0 auto; padding: 16px; }
-  header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
-  header h1 { font-size: 20px; }
-  .hero { text-align: center; padding: 28px 16px; border-radius: 16px; border: 1px solid var(--line); }
-  .hero.NORMAL { background: var(--ok-bg); color: var(--ok); }
-  .hero.WARNING { background: var(--warn-bg); color: var(--warn); }
-  .hero.TRIP { background: var(--trip-bg); color: var(--trip); }
-  .hero .icon { font-size: 44px; line-height: 1; }
-  .hero .word { font-size: 26px; font-weight: 700; margin-top: 8px; }
-  .hero .sub { font-size: 15px; margin-top: 4px; color: var(--ink); }
-  .stack > * + * { margin-top: 14px; }
-  .card p { margin: 0; }
-  .card p + p { margin-top: 8px; }
-  .facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 0; }
-  .facts dt { color: var(--muted); }
-  .facts dd { margin: 0; font-weight: 600; }
-  button.alerts { width: 100%; padding: 12px; font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
-  .small { font-size: 13px; color: var(--muted); }
-  #offline { display: none; padding: 10px; border-radius: 10px; background: var(--trip-bg); color: var(--trip); font-weight: 600; margin-bottom: 14px; }
+  body { padding: 0 16px 40px; }
+  .wrap { max-width: 460px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 18px 4px 14px; }
+  .stack > * + * { margin-top: 16px; }
+  .hero { text-align: center; padding: 28px 20px 24px; }
+  .hero .ring { width: 190px; height: 190px; margin: 0 auto 18px; }
+  .hero .msg { margin: 10px auto 0; text-align: left; }
+  .hero h1 { font-size: 32px; }
+  .hero .sub { margin-top: 6px; color: var(--muted); font-size: 15px; }
+  .hero .found { margin-top: 18px; padding: 14px 16px; border-radius: 16px; background: var(--card); text-align: left; font-size: 15px; }
+  .steps { margin: 0; padding-left: 20px; }
+  .steps li + li { margin-top: 8px; }
+  .big { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin-top: 6px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .row:first-of-type { border-top: 0; }
+  .row b { text-align: right; }
+  button.alerts { width: 100%; }
+  #offline { display: none; margin-bottom: 16px; padding: 12px 16px; border-radius: 16px; background: var(--trip-soft); color: var(--trip); font-weight: 600; }
 </style>
 </head>
 <body>
-<header><h1>Fuzz</h1><span class="small mono" id="updated">connecting...</span></header>
-<div id="offline">Cannot reach your Fuzz unit right now.</div>
-<div class="stack" id="app" hidden>
-  <div class="hero" id="hero"><div class="icon" id="icon"></div><div class="word" id="word"></div><div class="sub" id="sub"></div></div>
-  <div class="card"><h2>What we found</h2><p id="message"></p></div>
-  <div class="card" id="whatnow"><h2>What to do</h2><p id="advice"></p></div>
-  <div class="card" id="details"><h2>Details</h2><dl class="facts" id="facts"></dl></div>
-  <button class="alerts" id="alerts">Turn on alerts on this device</button>
-  <p class="small">Fuzz is an educational prototype, not a certified safety device. Appliance and distance guesses are estimates.</p>
+<div class="wrap">
+  <header><span class="logo" id="logo"></span><span class="pill" id="where">connecting...</span></header>
+  <div id="offline">Cannot reach your Fuzz unit right now.</div>
+  <div class="stack" id="app">
+    <section class="card hero NORMAL" id="hero">
+      <div id="ring"></div>
+      <h1 id="word">Waiting for your unit</h1>
+      <p class="sub" id="sub"></p>
+      <div class="found" id="found" hidden></div>
+    </section>
+    <section class="card" id="whatnow" hidden><h3>What to do</h3><ol class="steps" id="steps"></ol></section>
+    <section class="card" id="whereCard" hidden><h3>Where is the problem?</h3><div id="wire"></div><div class="big" id="distText"></div><p class="small muted" id="distNote" style="margin-top:4px"></p></section>
+    <section class="card" id="loadCard" hidden><h3>What is probably plugged in</h3><div class="chips" id="chips"></div></section>
+    <section class="card"><h3>Your circuit</h3><div id="facts"></div></section>
+    <button class="ghost alerts" id="alerts">Turn on alerts on this device</button>
+    <p class="small muted" style="text-align:center">Fuzz is an educational prototype, not a certified safety device. Appliance and distance guesses are estimates.</p>
+  </div>
 </div>
 <script src="/s/common.js"></script>
 <script>
-const ADVICE = {
-  NORMAL: "Nothing to do. Fuzz is watching this circuit.",
-  WARNING: "If it is safe to do so, switch off and unplug appliances on this circuit, especially heaters. Do not ignore this warning. Ask a licensed electrician to inspect the wiring and sockets.",
-  TRIP: "Power to this circuit has been cut automatically. Keep it off until a licensed electrician has checked the wiring. Do not keep resetting it.",
+document.getElementById("logo").innerHTML = LOGO;
+mountRing(document.getElementById("ring"));
+const STEPS = {
+  WARNING: ["If it is safe to do so, switch off and unplug appliances on this circuit, heaters first.", "Do not ignore this warning. Fuzz has seen more than one sign of a fault.", "Ask a licensed electrician to inspect the wiring and sockets."],
+  TRIP: ["Power to this circuit was cut automatically.", "Keep it off until a licensed electrician has checked the wiring.", "Do not keep resetting it."],
 };
-const SUB = { NORMAL: "All clear", WARNING: "Something needs attention", TRIP: "Circuit switched off for safety" };
-const FAMILY = { heating: "a heating appliance", motor: "a motor-driven appliance", electronics: "an electronic device", microwave: "the microwave" };
 const unitParam = new URLSearchParams(location.search).get("unit");
 let lastState = null;
 
-function fact(dl, k, v) { dl.append(el("dt", "", k), el("dd", "", v)); }
-
 function notify(r) {
-  document.title = (r.state === "NORMAL" ? "" : LABEL[r.state] + ": ") + "Fuzz home safety";
+  document.title = (r.state === "NORMAL" ? "" : STATES[r.state].pill + ": ") + "Fuzz home safety";
   if (lastState !== null && lastState !== r.state && r.state !== "NORMAL") {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    try { if (Notification.permission === "granted") new Notification("Fuzz: " + LABEL[r.state], { body: r.message }); } catch (e) {}
+    try { if (Notification.permission === "granted") new Notification("Fuzz: " + STATES[r.state].pill, { body: cleanMessage(r.message) }); } catch (e) {}
   }
   lastState = r.state;
 }
+function row(box, k, v) { const d = el("div", "row"); d.append(el("span", "muted", k), el("b", "", v)); box.append(d); }
 
 async function tick() {
   try {
@@ -67,23 +72,38 @@ async function tick() {
     document.getElementById("offline").style.display = "none";
     units.sort((a, b) => a.unit_id.localeCompare(b.unit_id));
     const r = units.find(u => u.unit_id === unitParam) || units[0];
-    document.getElementById("app").hidden = !r;
-    if (!r) { document.getElementById("updated").textContent = "waiting for a unit"; return; }
-    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
-    document.getElementById("hero").className = "hero " + r.state;
-    document.getElementById("icon").textContent = ICON[r.state];
-    document.getElementById("word").textContent = LABEL[r.state];
-    document.getElementById("sub").textContent = SUB[r.state];
-    document.getElementById("message").textContent = r.message;
-    document.getElementById("advice").textContent = ADVICE[r.state];
-    const dl = document.getElementById("facts"); dl.replaceChildren();
-    fact(dl, "Unit", r.unit_id);
-    fact(dl, "Circuit", r.relay === "OPEN" ? "Power is off" : "Power is on");
-    const ai = r.ai || {};
-    if (ai.family) fact(dl, "Likely load", `${FAMILY[ai.family.name] || ai.family.name} (${ai.appliances[0].name}, ${Math.round(ai.appliances[0].p * 100)}%)`);
-    if (ai.distance) fact(dl, "Where", ai.distance.hi - ai.distance.lo > 12 ? ai.distance.zone : `about ${ai.distance.m.toFixed(0)} m from the board`);
-    if (ai.distance) fact(dl, "Estimate", `${ai.distance.m.toFixed(0)} m, between ${ai.distance.lo.toFixed(0)} and ${ai.distance.hi.toFixed(0)} m`);
-    document.getElementById("details").hidden = dl.children.length <= 4;
+    const facts = document.getElementById("facts"); facts.replaceChildren();
+    if (!r) {
+      document.getElementById("where").textContent = "waiting for a unit";
+      setRing(document.getElementById("ring"), 3, "NORMAL");
+      document.getElementById("sub").textContent = "Nothing has reported yet."; return;
+    }
+    const S = STATES[r.state], ai = r.ai || {}, off = r.relay === "OPEN";
+    document.getElementById("where").textContent = r.unit_id;
+    document.getElementById("hero").className = "card hero " + r.state;
+    const h = Math.max(r.rf / 0.8, r.leak_ma / 30, r.didt, (r.temp_c - 40) / 40, 0) * 100;
+    setRing(document.getElementById("ring"), r.state === "TRIP" ? 100 : h, r.state);
+    document.getElementById("word").textContent = S.word;
+    document.getElementById("sub").textContent = S.sub;
+    const f = document.getElementById("found");
+    f.hidden = r.state === "NORMAL"; f.textContent = cleanMessage(r.message);
+    const steps = STEPS[r.state];
+    document.getElementById("whatnow").hidden = !steps;
+    const ol = document.getElementById("steps"); ol.replaceChildren();
+    (steps || []).forEach(t => ol.append(el("li", "", t)));
+    const d = ai.distance;
+    document.getElementById("whereCard").hidden = !d;
+    if (d) {
+      document.getElementById("wire").innerHTML = wireHTML(d, null);
+      document.getElementById("distText").textContent = d.hi - d.lo > 12 ? d.zone.charAt(0).toUpperCase() + d.zone.slice(1) : `About ${d.m.toFixed(0)} m from the board`;
+      document.getElementById("distNote").textContent = `Best guess ${d.m.toFixed(0)} m, between ${d.lo.toFixed(0)} and ${d.hi.toFixed(0)} m.`;
+    }
+    document.getElementById("loadCard").hidden = !ai.appliances;
+    if (ai.appliances) chips(document.getElementById("chips"), ai);
+    row(facts, "Power", off ? "Off" : "On");
+    row(facts, "Mains voltage", off ? "-" : r.volt.toFixed(0) + " V");
+    row(facts, "Temperature", r.temp_c.toFixed(1) + " °C");
+    row(facts, "Updated", clock(r.time));
     notify(r);
   } catch (e) { document.getElementById("offline").style.display = "block"; }
 }
@@ -91,7 +111,7 @@ document.getElementById("alerts").onclick = async () => {
   try { await Notification.requestPermission(); } catch (e) {}
   document.getElementById("alerts").textContent = (window.Notification && Notification.permission === "granted") ? "Alerts are on" : "Alerts are blocked in this browser";
 };
-tick(); setInterval(tick, 1000);
+tick(); setInterval(tick, 800);
 </script>
 </body>
 </html>
