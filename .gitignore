@@ -10,6 +10,11 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
+.history/
+*-backups/
+fp-info-cache
+*.kicad_prl
+~*.lck
 
 ml/data/
 *-backups/
