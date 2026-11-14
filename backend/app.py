@@ -1,12 +1,13 @@
 import os
 import numpy as np
 import joblib
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, "models")
 
-app = Flask(__name__)
+DASH = os.path.join(HERE, "..", "dashboard")
+app = Flask(__name__, static_folder=DASH, static_url_path="/s")
 latest = {}
 history = {}
 last_live = {}
@@ -79,6 +80,14 @@ def write_message(state, reason, ai):
                 text += f" Roughly {d['m']:.0f} m from the board (range {d['lo']:.0f} to {d['hi']:.0f} m)."
     return head + text
 
+@app.get("/")
+def operator_page():
+    return send_from_directory(DASH, "operator.html")
+
+
+@app.get("/client")
+def client_page():
+    return send_from_directory(DASH, "client.html")
 
 @app.post("/api/telemetry")
 def telemetry():

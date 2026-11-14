@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuzz home safety</title>
+<link rel="stylesheet" href="/s/style.css">
+<style>
+  body { max-width: 480px; margin: 0 auto; padding: 16px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  header h1 { font-size: 20px; }
+  .hero { text-align: center; padding: 28px 16px; border-radius: 16px; border: 1px solid var(--line); }
+  .hero.NORMAL { background: var(--ok-bg); color: var(--ok); }
+  .hero.WARNING { background: var(--warn-bg); color: var(--warn); }
+  .hero.TRIP { background: var(--trip-bg); color: var(--trip); }
+  .hero .icon { font-size: 44px; line-height: 1; }
+  .hero .word { font-size: 26px; font-weight: 700; margin-top: 8px; }
+  .hero .sub { font-size: 15px; margin-top: 4px; color: var(--ink); }
+  .stack > * + * { margin-top: 14px; }
+  .card p { margin: 0; }
+  .card p + p { margin-top: 8px; }
+  .facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 0; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; font-weight: 600; }
+  button.alerts { width: 100%; padding: 12px; font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+  .small { font-size: 13px; color: var(--muted); }
+  #offline { display: none; padding: 10px; border-radius: 10px; background: var(--trip-bg); color: var(--trip); font-weight: 600; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<header><h1>Fuzz</h1><span class="small mono" id="updated">connecting...</span></header>
+<div id="offline">Cannot reach your Fuzz unit right now.</div>
+<div class="stack" id="app" hidden>
+  <div class="hero" id="hero"><div class="icon" id="icon"></div><div class="word" id="word"></div><div class="sub" id="sub"></div></div>
+  <div class="card"><h2>What we found</h2><p id="message"></p></div>
+  <div class="card" id="whatnow"><h2>What to do</h2><p id="advice"></p></div>
+  <div class="card" id="details"><h2>Details</h2><dl class="facts" id="facts"></dl></div>
+  <button class="alerts" id="alerts">Turn on alerts on this device</button>
+  <p class="small">Fuzz is an educational prototype, not a certified safety device. Appliance and distance guesses are estimates.</p>
+</div>
+<script src="/s/common.js"></script>
+<script>
+const ADVICE = {
+  NORMAL: "Nothing to do. Fuzz is watching this circuit.",
+  WARNING: "If it is safe to do so, switch off and unplug appliances on this circuit, especially heaters. Do not ignore this warning. Ask a licensed electrician to inspect the wiring and sockets.",
+  TRIP: "Power to this circuit has been cut automatically. Keep it off until a licensed electrician has checked the wiring. Do not keep resetting it.",
+};
+const SUB = { NORMAL: "All clear", WARNING: "Something needs attention", TRIP: "Circuit switched off for safety" };
+const FAMILY = { heating: "a heating appliance", motor: "a motor-driven appliance", electronics: "an electronic device", microwave: "the microwave" };
+const unitParam = new URLSearchParams(location.search).get("unit");
+let lastState = null;
+
+function fact(dl, k, v) { dl.append(el("dt", "", k), el("dd", "", v)); }
+
+function notify(r) {
+  document.title = (r.state === "NORMAL" ? "" : LABEL[r.state] + ": ") + "Fuzz home safety";
+  if (lastState !== null && lastState !== r.state && r.state !== "NORMAL") {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    try { if (Notification.permission === "granted") new Notification("Fuzz: " + LABEL[r.state], { body: r.message }); } catch (e) {}
+  }
+  lastState = r.state;
+}
+
+async function tick() {
+  try {
+    const units = await getJSON("/api/units");
+    document.getElementById("offline").style.display = "none";
+    units.sort((a, b) => a.unit_id.localeCompare(b.unit_id));
+    const r = units.find(u => u.unit_id === unitParam) || units[0];
+    document.getElementById("app").hidden = !r;
+    if (!r) { document.getElementById("updated").textContent = "waiting for a unit"; return; }
+    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
+    document.getElementById("hero").className = "hero " + r.state;
+    document.getElementById("icon").textContent = ICON[r.state];
+    document.getElementById("word").textContent = LABEL[r.state];
+    document.getElementById("sub").textContent = SUB[r.state];
+    document.getElementById("message").textContent = r.message;
+    document.getElementById("advice").textContent = ADVICE[r.state];
+    const dl = document.getElementById("facts"); dl.replaceChildren();
+    fact(dl, "Unit", r.unit_id);
+    fact(dl, "Circuit", r.relay === "OPEN" ? "Power is off" : "Power is on");
+    const ai = r.ai || {};
+    if (ai.family) fact(dl, "Likely load", `${FAMILY[ai.family.name] || ai.family.name} (${ai.appliances[0].name}, ${Math.round(ai.appliances[0].p * 100)}%)`);
+    if (ai.distance) fact(dl, "Where", ai.distance.hi - ai.distance.lo > 12 ? ai.distance.zone : `about ${ai.distance.m.toFixed(0)} m from the board`);
+    if (ai.distance) fact(dl, "Estimate", `${ai.distance.m.toFixed(0)} m, between ${ai.distance.lo.toFixed(0)} and ${ai.distance.hi.toFixed(0)} m`);
+    document.getElementById("details").hidden = dl.children.length <= 4;
+    notify(r);
+  } catch (e) { document.getElementById("offline").style.display = "block"; }
+}
+document.getElementById("alerts").onclick = async () => {
+  try { await Notification.requestPermission(); } catch (e) {}
+  document.getElementById("alerts").textContent = (window.Notification && Notification.permission === "granted") ? "Alerts are on" : "Alerts are blocked in this browser";
+};
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuzz operator dashboard</title>
+<link rel="stylesheet" href="/s/style.css">
+<style>
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header h1 { font-size: 18px; }
+  main { display: grid; grid-template-columns: 240px 1fr; gap: 16px; padding: 16px 20px; max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  .unit { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; padding: 12px; margin-bottom: 8px;
+          border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); font: inherit; cursor: pointer; }
+  .unit[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .stack > * + * { margin-top: 16px; }
+  .top { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  .top h2 { margin: 0; font-size: 20px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+  .message { margin-top: 10px; font-size: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .tile .v { font-size: 24px; font-weight: 600; }
+  .tile .u { font-size: 13px; color: var(--muted); margin-left: 3px; }
+  .tile .n { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .tile .bar { margin-top: 8px; }
+  .tile .lim { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; margin-bottom: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+  canvas { width: 100%; height: 240px; display: block; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .two { grid-template-columns: 1fr; } }
+  .row { display: grid; grid-template-columns: 150px 1fr 44px; gap: 8px; align-items: center; margin: 6px 0; font-size: 14px; }
+  .track { position: relative; height: 28px; margin: 36px 0 4px; background: var(--line); border-radius: 6px; }
+  .track .range { position: absolute; top: 0; bottom: 0; background: var(--accent); opacity: .35; border-radius: 6px; }
+  .track .pt { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--accent); border-radius: 2px; }
+  .track .truth::after { content: "▼"; display: block; text-align: center; line-height: 1; }
+  .track .truth { position: absolute; top: -32px; font-size: 11px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+  .axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  ul.log { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow: auto; font-size: 14px; }
+  ul.log li { display: flex; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+  ul.log li:first-child { border-top: 0; }
+  ul.log li > .badge, ul.log li > .mono { flex: none; white-space: nowrap; }
+  .note { font-size: 13px; color: var(--muted); }
+  #offline { display: none; padding: 10px 20px; background: var(--trip-bg); color: var(--trip); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="offline">Cannot reach the backend. Start it with python backend\app.py.</div>
+<header>
+  <h1>Fuzz operator dashboard</h1>
+  <span class="muted mono" id="updated">connecting...</span>
+</header>
+<main>
+  <aside><h2>Units</h2><div id="units"></div><p class="note" id="nounits">No unit has reported yet. Start the simulator.</p></aside>
+  <section class="stack" id="detail" hidden>
+    <div class="card">
+      <div class="top"><h2 id="uid"></h2><span id="state"></span><span class="muted" id="relay"></span><span class="muted mono" id="time"></span></div>
+      <div class="message" id="message"></div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <h2>Last 5 minutes, as a share of each channel's trip limit</h2>
+      <div class="legend" id="legend"></div>
+      <canvas id="chart"></canvas>
+      <p class="note">Shaded bands: amber = warning, red = power cut. Dashed line = trip limit. Dotted line = level at which a channel counts as raised.</p>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h2>Likely load on the circuit</h2>
+        <div id="apps"></div>
+        <p class="note" id="appnote"></p>
+      </div>
+      <div class="card">
+        <h2>Probable distance from the board</h2>
+        <div id="dist"></div>
+        <p class="note" id="distnote"></p>
+      </div>
+    </div>
+    <div class="card"><h2>Alert history</h2><ul class="log" id="log"></ul></div>
+    <p class="note" id="truth"></p>
+  </section>
+</main>
+<script src="/s/common.js"></script>
+<script>
+const LIMITS = { rf: 0.8, leak_ma: 30, didt: 1.0 };
+const CH = [
+  { key: "rf", name: "RF arc", unit: "", color: "--c-rf", pct: r => r.rf / 0.8 * 100, show: r => r.rf.toFixed(2), lim: "trip at 0.80" },
+  { key: "leak", name: "Leakage", unit: "mA", color: "--c-leak", pct: r => r.leak_ma / 30 * 100, show: r => r.leak_ma.toFixed(1), lim: "trip at 30 mA" },
+  { key: "didt", name: "di/dt", unit: "", color: "--c-didt", pct: r => r.didt / 1.0 * 100, show: r => r.didt.toFixed(2), lim: "trip at 1.00" },
+  { key: "temp", name: "Temperature", unit: "°C", color: "--c-temp", pct: r => Math.max(0, (r.temp_c - 40) / 40 * 100), show: r => r.temp_c.toFixed(1), lim: "warns above 40, trips at 80" },
+];
+let selected = null;
+
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+function renderUnits(units) {
+  const box = document.getElementById("units");
+  box.replaceChildren();
+  document.getElementById("nounits").style.display = units.length ? "none" : "";
+  units.forEach(u => {
+    const b = el("button", "unit"); b.setAttribute("aria-pressed", String(u.unit_id === selected));
+    b.append(el("span", "", u.unit_id), badge(u.state));
+    b.onclick = () => { selected = u.unit_id; tick(); };
+    box.append(b);
+  });
+}
+
+function renderTiles(r) {
+  const box = document.getElementById("tiles"); box.replaceChildren();
+  CH.forEach(c => {
+    const t = el("div", "card tile"); t.append(el("div", "n", c.name));
+    const v = el("div", "v mono", c.show(r)); v.append(el("span", "u", c.unit)); t.append(v);
+    const bar = el("div", "bar"), i = el("i"); i.style.width = Math.min(100, c.pct(r)) + "%"; i.style.background = `var(${c.color})`;
+    bar.append(i); t.append(bar, el("div", "lim", c.lim)); box.append(t);
+  });
+  const t = el("div", "card tile"); t.append(el("div", "n", "Mains voltage"));
+  const v = el("div", "v mono", r.volt.toFixed(0)); v.append(el("span", "u", "V")); t.append(v);
+  const ok = r.volt === 0 ? "circuit is open" : (r.volt >= 207 && r.volt <= 253 ? "within 207 to 253 V" : "OUT OF RANGE");
+  t.append(el("div", "lim", ok)); box.append(t);
+}
+
+function renderChart(h) {
+  const cv = document.getElementById("chart"), dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, hgt = cv.clientHeight;
+  cv.width = w * dpr; cv.height = hgt * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const L = 36, R = 8, T = 8, B = 18, YMAX = 120;
+  const X = i => L + (w - L - R) * (h.length <= 1 ? 1 : i / (h.length - 1));
+  const Y = p => T + (hgt - T - B) * (1 - Math.min(p, YMAX) / YMAX);
+  g.font = "11px system-ui"; g.fillStyle = cssVar("--muted"); g.strokeStyle = cssVar("--line");
+  [0, 50, 100].forEach(p => { g.beginPath(); g.moveTo(L, Y(p)); g.lineTo(w - R, Y(p)); g.stroke(); g.fillText(p + "%", 2, Y(p) + 4); });
+  // state bands
+  for (let i = 0; i < h.length; i++) {
+    if (h[i].state === "NORMAL") continue;
+    g.fillStyle = h[i].state === "TRIP" ? cssVar("--trip-bg") : cssVar("--warn-bg");
+    const x0 = X(Math.max(0, i - 0.5)), x1 = X(Math.min(h.length - 1, i + 0.5));
+    g.fillRect(x0, T, Math.max(1, x1 - x0), hgt - T - B);
+  }
+  g.setLineDash([6, 4]); g.strokeStyle = cssVar("--trip"); g.beginPath(); g.moveTo(L, Y(100)); g.lineTo(w - R, Y(100)); g.stroke();
+  g.setLineDash([2, 3]); g.strokeStyle = cssVar("--muted"); g.beginPath(); g.moveTo(L, Y(35)); g.lineTo(w - R, Y(35)); g.stroke(); g.setLineDash([]);
+  CH.forEach(c => {
+    g.strokeStyle = cssVar(c.color); g.lineWidth = 1.8; g.beginPath();
+    h.forEach((r, i) => { const x = X(i), y = Y(c.pct(r)); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+  });
+  g.lineWidth = 1; g.fillStyle = cssVar("--muted");
+  g.fillText("older", L, hgt - 4); g.textAlign = "right"; g.fillText("now", w - R, hgt - 4); g.textAlign = "left";
+}
+
+function renderAI(r) {
+  const ai = r.ai || {}, apps = document.getElementById("apps"), dist = document.getElementById("dist");
+  apps.replaceChildren(); dist.replaceChildren();
+  if (ai.appliances) {
+    ai.appliances.forEach(a => {
+      const row = el("div", "row"); row.append(el("span", "", a.name));
+      const bar = el("div", "bar"), i = el("i"); i.style.width = (a.p * 100) + "%"; bar.append(i);
+      row.append(bar, el("span", "mono", Math.round(a.p * 100) + "%")); apps.append(row);
+    });
+    document.getElementById("appnote").textContent = `Family: ${ai.family.name} (${Math.round(ai.family.p * 100)}%). Assumes one appliance running. Family level is right about 89% of the time on unseen houses.`;
+  } else {
+    apps.append(el("p", "muted", "Shown while a warning or power cut is active."));
+    document.getElementById("appnote").textContent = "";
+  }
+  if (ai.distance) {
+    const d = ai.distance, pos = v => (v - 1) / 19 * 100 + "%";
+    const track = el("div", "track");
+    const rg = el("div", "range"); rg.style.left = pos(d.lo); rg.style.width = ((d.hi - d.lo) / 19 * 100) + "%";
+    const pt = el("div", "pt"); pt.style.left = pos(d.m); track.append(rg, pt);
+    const truth = r.sim_truth && r.sim_truth.scenario === "arc" ? r.sim_truth.distance_m : null;
+    if (truth !== null) { const tr = el("div", "truth", "simulated truth"); tr.style.left = pos(truth); track.append(tr); }
+    const ax = el("div", "axis"); ax.append(el("span", "", "1 m"), el("span", "", "board to far end"), el("span", "", "20 m"));
+    dist.append(el("div", "", `About ${d.m.toFixed(0)} m, range ${d.lo.toFixed(0)} to ${d.hi.toFixed(0)} m`), track, ax);
+    document.getElementById("distnote").textContent = "90% range, one RF band, no per-home calibration. A wide range means the estimate is only a rough zone.";
+  } else {
+    dist.append(el("p", "muted", "Only available for arc faults."));
+    document.getElementById("distnote").textContent = "";
+  }
+}
+
+function renderLog(h) {
+  const log = document.getElementById("log"); log.replaceChildren();
+  const items = [];
+  h.forEach((r, i) => { if (i === 0 || r.state !== h[i - 1].state) items.push(r); });
+  if (!items.length) { log.append(el("li", "muted", "No history yet.")); return; }
+  items.reverse().forEach(r => {
+    const li = el("li"); li.append(el("span", "mono muted", clock(r.time)), badge(r.state), el("span", "", r.message)); log.append(li);
+  });
+}
+
+async function tick() {
+  try {
+    const units = await getJSON("/api/units");
+    document.getElementById("offline").style.display = "none";
+    units.sort((a, b) => a.unit_id.localeCompare(b.unit_id));
+    if (!selected && units.length) selected = units[0].unit_id;
+    renderUnits(units);
+    const r = units.find(u => u.unit_id === selected);
+    document.getElementById("detail").hidden = !r;
+    if (!r) return;
+    const h = await getJSON("/api/history/" + encodeURIComponent(selected));
+    document.getElementById("updated").textContent = "updated " + new Date().toLocaleTimeString();
+    document.getElementById("uid").textContent = r.unit_id;
+    document.getElementById("state").replaceChildren(badge(r.state));
+    document.getElementById("relay").textContent = "relay " + r.relay.toLowerCase();
+    document.getElementById("time").textContent = clock(r.time);
+    document.getElementById("message").textContent = r.message;
+    renderTiles(r); renderChart(h); renderAI(r); renderLog(h);
+    const t = r.sim_truth;
+    document.getElementById("truth").textContent = t ? `Simulation only: scenario ${t.scenario}, true distance ${t.distance_m} m, load ${t.appliance || "none"}.` : "";
+    const lg = document.getElementById("legend"); lg.replaceChildren();
+    CH.forEach(c => { const s = el("span"); const i = el("i"); i.style.background = `var(${c.color})`; s.append(i, c.name); lg.append(s); });
+  } catch (e) {
+    document.getElementById("offline").style.display = "block";
+  }
+}
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>
