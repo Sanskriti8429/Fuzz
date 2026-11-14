@@ -7,3 +7,4 @@ xgboost
 jupyter
 h5py
 flask
+joblib

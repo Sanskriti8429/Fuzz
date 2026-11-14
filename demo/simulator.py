@@ -1,4 +1,4 @@
-import argparse, json, random, time, urllib.request
+import argparse, json, os, random, time, urllib.request
 from collections import deque
 from datetime import datetime, timezone
 
@@ -52,6 +52,23 @@ def fuse(r, window, tripped):
         return "WARNING"
     return "NORMAL"
 
+BANK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend", "models", "demo_bank.json")
+
+def load_bank(appliance, distance):
+    """Pick the (fixed) appliance feature vector and RF level for this run from the saved demo bank."""
+    if not os.path.exists(BANK):
+        print("demo_bank.json not found: run python ml\\train_models.py first. Running without model inputs.")
+        return None, None, None
+    bank = json.load(open(BANK))
+    want = appliance.lower().replace("-", " ").replace("_", " ")
+    hits = [c for c in bank["appliance"] if c.lower().startswith(want)]
+    if len(hits) != 1:
+        raise SystemExit(f"--appliance must match exactly one of: {', '.join(bank['appliance'])}")
+    feats = random.choice(bank["appliance"][hits[0]])
+    d, f = bank["dist"]["d"], bank["dist"]["f"]
+    near = [i for i in range(len(d)) if abs(d[i] - distance) <= 1.0] or [min(range(len(d)), key=lambda i: abs(d[i] - distance))]
+    return hits[0], feats, f[random.choice(near)]
+
 def post(url, payload):
     req = urllib.request.Request(url, json.dumps(payload).encode(), {"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5).read()
@@ -60,12 +77,16 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("scenario", choices=["normal", "arc", "leakage", "overheat", "surge"])
     p.add_argument("--distance", type=float, default=10.0, help="arc distance in metres (truth, for testing)")
+    p.add_argument("--appliance", default="heater", help="what is running on the circuit (prefix of a PLAID type name)")
     p.add_argument("--unit", default="fuzz-01")
     p.add_argument("--duration", type=float, default=60.0)
     p.add_argument("--interval", type=float, default=1.0)
     p.add_argument("--url", default="http://127.0.0.1:5000/api/telemetry")
     a = p.parse_args()
 
+    appliance, app_feats, rf_rel = load_bank(a.appliance, a.distance)
+    if appliance:
+        print(f"load on the circuit: {appliance}")
     tripped, t, warn_until = False, 0.0, -1.0
     window = deque(maxlen=5)
     while t <= a.duration:
@@ -80,10 +101,16 @@ def main():
             r.update(rf=0.0, leak_ma=0.0, didt=0.0, volt=0.0)
         payload = dict(unit_id=a.unit, time=datetime.now(timezone.utc).isoformat(), state=state,
                        relay="OPEN" if tripped else "CLOSED", **r,
-                       sim_truth=dict(scenario=a.scenario, distance_m=a.distance))
+                       sim_truth=dict(scenario=a.scenario, distance_m=a.distance, appliance=appliance))
+        if app_feats and not tripped:
+            payload["appliance_features"] = app_feats
+            if a.scenario == "arc" and r["rf"] > 0.15:
+                payload["rf_rel_db"] = round(rf_rel + random.gauss(0, 1.0), 2)
         post(a.url, payload)
         print(f"t={t:5.1f}s  {state:8s} rf={r['rf']:.2f} leak={r['leak_ma']:5.1f}mA "
               f"didt={r['didt']:.2f} temp={r['temp_c']:.1f}C volt={r['volt']:.0f}V")
+        if t % 10 < 1:
+            print("   ", json.loads(urllib.request.urlopen(a.url.replace("telemetry", "units")).read())[0]["message"])
         time.sleep(a.interval)
         t += 1.0
 

@@ -99,7 +99,7 @@ requirements.txt  Python packages
 - [ ] Deep models compared (1D CNN, ROCKET, CNN-Transformer)
 - [x] ESP32 simulator and backend telemetry endpoint
 - [ ] ESP32 firmware fusion logic
-- [ ] Model inference in the backend
+- [x] Model inference in the backend
 - [ ] Operator dashboard and client view
 - [ ] Calculations report
 - [ ] Demo video
@@ -150,6 +150,7 @@ The four analog stages were simulated in LTspice (netlists in `hardware/simulati
 - **Single-channel current classifiers did not transfer well across datasets.** This motivates, but does not yet prove, the multi-sensor approach.
 - **Simulation assumptions.** The antenna source impedance, the di/dt coil inductance and the NTC beta (3950) are assumed, not measured. The RF channel has no high-pass, so mains pickup is amplified. The leakage rectifier does not hold a DC level, so the firmware samples the waveform instead. The di/dt trip has only about four times margin over normal load, so dimmers and motor starts may need extra handling.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
+- **One appliance at a time.** The deployed appliance model assumes a single running load. The multi-label model for several appliances uses full-current windows and is not connected to the backend.
 
 ## Getting started
 
@@ -169,3 +170,5 @@ python demo\simulator.py arc --distance 10 --interval 0.2
 ```
 
 The scenarios are `normal`, `arc`, `leakage`, `overheat` and `surge`. Readings are available at `http://127.0.0.1:5000/api/units`.
+
+Train and save the models first (`python ml\train_models.py`). The simulator takes `--appliance` (for example `hairdryer`, `fan`, `laptop`), and the backend returns a plain-language message with the likely appliance family and a distance range.
