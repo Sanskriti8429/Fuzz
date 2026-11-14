@@ -93,7 +93,7 @@ requirements.txt  Python packages
 - [x] Sensing strategy and system design
 - [x] Full-system schematic in KiCad (ERC run, 0 violations, with some checks ignored)
 - [x] Exported schematic PDF and BOM
-- [ ] Analog stages simulated in SPICE and component values confirmed
+- [x] Analog stages simulated in SPICE and component values confirmed
 - [ ] Cable and arc-source model for the distance data
 - [x] Arc datasets (Ferracuti, Lorraine) downloaded and explored
 - [ ] Appliance datasets (PLAID, COOLL) downloaded and explored
@@ -133,6 +133,16 @@ Windows are labelled as arc when the arc-voltage RMS exceeds 5 V and the applian
 - **Rule-based fusion.** Fusion thresholds come from calculation and simulation, not from field data.
 - **Single-channel current classifiers did not transfer well across datasets.** This motivates, but does not yet prove, the multi-sensor approach.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
+- **Simulation assumptions.** The antenna source impedance, the di/dt coil inductance and the NTC beta (3950) are assumed, not measured. The RF channel has no high-pass, so mains pickup is amplified. The leakage rectifier does not hold a DC level, so the firmware samples the waveform instead. The di/dt trip has only about four times margin over normal load, so dimmers and motor starts may need extra handling.
+
+## Simulation results
+
+The four analog stages were simulated in LTspice (netlists in `hardware/simulation/`). The simulations changed two component values: U1 is now a roughly 10 MHz rail-to-rail op-amp (TLV9062) instead of a TS912, and R9 is 100k instead of 1M.
+
+- **RF arc channel:** the LC tank resonates at about 970 kHz. Gain at resonance depends on the antenna's source impedance (about +36 dB at 10 ohms, about +23 dB at 50 ohms, untuned at 200 ohms). With a 10 ohm source the detector responds to signals of about 1 to 2 mV and saturates above about 15 mV.
+- **Leakage channel:** with R9 at 100k the amplifier has a gain of about 101 and tolerates a few millivolts of offset. A 30 mA leakage gives a swing of about 70 to 80 mV.
+- **di/dt channel:** with an assumed 1 microhenry coil, the comparator trips at about 16.5 kA/s and ignores normal 50 Hz load current. The ESP32 must catch the pulse with a falling-edge interrupt.
+- **Temperature channel:** the divider output is 0.76 V at 0 C, 1.65 V at 25 C, 2.64 V at 60 C and 3.08 V at 100 C.
 
 ## Getting started
 
