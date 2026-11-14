@@ -56,7 +56,61 @@ The four-channel fusion itself is rule-based, because no public dataset contains
 
 ## System architecture
 
-*To be added.*
+```mermaid
+flowchart TB
+  subgraph Board["At the distribution board"]
+    direction LR
+    RF["RF arc sensor<br/>loop antenna, LC tank, detector"]
+    LK["Leakage<br/>ZMCT103C"]
+    DI["di/dt<br/>coil, integrator, comparator"]
+    TP["Temperature<br/>NTC divider"]
+    VT["Mains voltage<br/>ZMPT101B"]
+    ESP["ESP32<br/>fusion rule, trip latch"]
+    OUT["Relay and buzzer"]
+    RF --> ESP
+    LK --> ESP
+    DI --> ESP
+    TP --> ESP
+    VT --> ESP
+    ESP -->|"trip, warn"| OUT
+  end
+  subgraph Server["Server (Flask)"]
+    direction LR
+    API["Telemetry API"]
+    M1["Appliance model<br/>from integrator output"]
+    M2["Distance model<br/>from RF level, with 90% range"]
+    MSG["Plain-language message"]
+    API --> M1
+    API --> M2
+    M1 --> MSG
+    M2 --> MSG
+  end
+  subgraph Apps["Apps (HTML and JavaScript)"]
+    direction LR
+    OP["Operator dashboard"]
+    CL["Client mobile view"]
+  end
+  ESP -->|"Wi-Fi, JSON every second"| API
+  MSG --> OP
+  MSG --> CL
+```
+
+The trip decision is made on the ESP32 and does not depend on the server or Wi-Fi. The server adds the machine-learning estimates and the plain-language message.
+
+How the models are trained:
+
+```mermaid
+flowchart LR
+  D1["PLAID<br/>appliance currents"] --> F1["Mean current cycle"]
+  F1 --> F2["Simulated integrator output<br/>coil, integrator, ADC steps"]
+  F2 --> F3["Shape features"]
+  F3 --> M1["Appliance classifier<br/>Random Forest"]
+  S1["Cable and installation model<br/>loss, ripple, antenna gain"] --> F4["RF level relative to di/dt"]
+  F4 --> M2["Distance regressor<br/>Random Forest + conformal range"]
+  M1 --> BE["backend/models"]
+  M2 --> BE
+  A1["Ferracuti, Lorraine<br/>arc currents"] --> A2["Arc classifier<br/>evaluated, not deployed"]
+```
 
 ## Operator dashboard and client app
 
@@ -100,7 +154,7 @@ requirements.txt  Python packages
 - [x] ESP32 simulator and backend telemetry endpoint
 - [ ] ESP32 firmware fusion logic
 - [x] Model inference in the backend
-- [ ] Operator dashboard and client view
+- [x] Operator dashboard and client view
 - [ ] Calculations report
 - [ ] Demo video
 
@@ -172,3 +226,5 @@ python demo\simulator.py arc --distance 10 --interval 0.2
 The scenarios are `normal`, `arc`, `leakage`, `overheat` and `surge`. Readings are available at `http://127.0.0.1:5000/api/units`.
 
 Train and save the models first (`python ml\train_models.py`). The simulator takes `--appliance` (for example `hairdryer`, `fan`, `laptop`), and the backend returns a plain-language message with the likely appliance family and a distance range.
+
+Start the backend with `python backend\app.py`, then open `http://127.0.0.1:5000/` (operator dashboard) and `http://127.0.0.1:5000/client` (client view). Use the "Run a demo" panel on the operator page to start a scenario. The command-line simulator (`python demo\simulator.py arc --distance 10 --appliance hairdryer`) still works for testing.
