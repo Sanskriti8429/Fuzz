@@ -94,9 +94,9 @@ requirements.txt  Python packages
 - [x] Full-system schematic in KiCad (ERC run, 0 violations, with some checks ignored)
 - [x] Exported schematic PDF and BOM
 - [x] Analog stages simulated in SPICE and component values confirmed
-- [ ] Cable and arc-source model for the distance data
 - [x] Arc datasets (Ferracuti, Lorraine) downloaded and explored
-- [ ] Appliance datasets (PLAID, COOLL) downloaded and explored
+- [x] Cable and arc-source model for the distance data
+- [x] Appliance dataset PLAID downloaded and explored (COOLL pending: password requested)
 - [x] Arc classifier baseline with same-dataset and cross-dataset evaluation
 - [ ] Training-data generation pipeline
 - [ ] Models trained, compared and evaluated across datasets
@@ -124,6 +124,7 @@ No public dataset contains distance, so distance labels come from the simulated 
 - **Appliance identification, single appliance (PLAID, 11 types, split by house):** 76.6% exact accuracy and 94.1% accuracy at family level (heating, motor-driven, electronics, microwave). Heater is often mistaken for hairdryer, and fan for air conditioner, because their current shapes are similar. A random split gives 98 to 99%, which is inflated because recordings from the same house land on both sides.
 - **Appliance identification, several at once (PLAID aggregated, split in blocks of records):** macro F1 0.85 over 13 types. With one appliance running the exact set is right in 98% of windows, with two running 53% (84% of the true appliances are in the top two guesses), and with three running 15% (76% in the top three).
 - **Appliance identification, cross-dataset:** trained only on synthetic mixtures of single-appliance recordings from 2013 to 2014 houses and tested on real 2017 lab mixtures, macro F1 is about 0.40. Lamp, laptop and fridge transfer (F1 0.87, 0.81, 0.62), but air conditioner and fan do not (F1 0.00).
+- **Distance estimate (simulation):** with a single RF band and no calibration the model is barely better than guessing the middle of the circuit (average error 4.1 to 4.9 m against 4.75 m for guessing), with a 90% range 15 to 17 m wide. A second RF band lowers this to 3.5 m in homes that attenuate strongly (1 dB/m of junction and load loss). After a per-home calibration (about 60 labelled events) the error falls to 1.8 m with one band and 0.8 m with two bands at 1 dB/m, and to 3.7 m and 2.3 m at 0.3 dB/m. In homes that attenuate very little (0.1 dB/m) nothing works well.
 
 Windows are labelled as arc when the arc-voltage RMS exceeds 5 V and the appliance is conducting (current RMS above 0.3 A). The 457 arc windows include 47 low-voltage Res7.9A windows (arc voltage up to 5.9 V RMS) whose labels are doubtful and none of which were detected.
 
@@ -138,6 +139,7 @@ Windows are labelled as arc when the arc-voltage RMS exceeds 5 V and the applian
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
 - **Simulation assumptions.** The antenna source impedance, the di/dt coil inductance and the NTC beta (3950) are assumed, not measured. The RF channel has no high-pass, so mains pickup is amplified. The leakage rectifier does not hold a DC level, so the firmware samples the waveform instead. The di/dt trip has only about four times margin over normal load, so dimmers and motor starts may need extra handling.
 - **Appliance identity is device-specific.** Models recognise appliance families well but do not reliably recognise unseen individual devices. A deployed unit would need to learn each household's appliances. PLAID is also recorded on 120 V, 60 Hz mains, not 230 V, 50 Hz.
+- **Distance is coarse without calibration.** Cable loss alone carries almost no distance information at 1 MHz, so the estimate relies on junction and load losses that vary from home to home. All cable, source and installation parameters are assumptions, not measurements. A second RF band is proposed as a hardware extension but is not in the current schematic.
 
 ## Simulation results
 
