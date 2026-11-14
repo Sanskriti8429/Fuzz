@@ -1,0 +1,7 @@
+* Fuzz temperature divider: NTC (VCC side) + R_temp1 (GND side)
+* Simulation "time" in seconds is used as temperature in degrees C
+Vcc vcc 0 3.3
+Rntc vcc t R={10k*exp(3950*(1/(time+273.15)-1/298.15))}
+R_temp1 t 0 10k
+.tran 125
+.end

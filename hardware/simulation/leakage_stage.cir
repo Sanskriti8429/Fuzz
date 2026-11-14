@@ -1,0 +1,39 @@
+* Fuzz leakage chain (transient)
+.param Ileak=30m
+.param vos=0
+
+* LM358-like: 1 MHz GBW, offset vos, output limited 0.05..1.8 V (VCC-1.5 V)
+.subckt LM358m inp inn out
+Vos inp i2 {vos}
+G1 0 x i2 inn 1m
+Rp x 0 100Meg
+Cp x 0 {1/(2*pi*1k*1Meg)}
+E1 out 0 value={limit(V(x),0.05,1.8)}
+.ends
+
+.model BAT54 D(Is=1e-7 Rs=0.5 N=1.0 Cjo=7p Vj=0.4 M=0.5 Bv=30)
+
+Vcc vcc 0 3.3
+R5 vcc b 100k
+R6 b 0 100k
+C4 b 0 1u
+
+* ZMCT103C 1000:1, secondary current = leakage/1000
+I1 0 a SIN(0 {Ileak/1000} 50)
+Rburden1 a 0 100
+C3 a p 100n
+R7 p b 100k
+
+* Amplifier: gain 1 + 100k/1k = 101
+X2 p m out LM358m
+R8 m b 1k
+R9 m out 100k
+
+* Rectifier
+D2 out k BAT54
+C5 k 0 100n
+R10 k 0 47k
+
+.step param vos list 0 1m 3m
+.tran 0 300m 0 10u
+.end

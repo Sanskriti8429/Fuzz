@@ -1,0 +1,4 @@
+Info: Output directory 'C:\Users\Sanskriti Jain\Desktop\Projects\Fuzz\hardware\Fuzz' created.
+Plotted to 'C:\Users\Sanskriti Jain\Desktop\Projects\Fuzz\hardware\Fuzz\capstone_circuit.pdf'.
+
+Info: Done.

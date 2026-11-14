@@ -1,0 +1,39 @@
+* Fuzz RF chain as drawn: tank + preamp + detector + x6 stage (transient)
+.param amp=5m
+.param Rant=10
+
+* Fast rail-to-rail op-amp model, 10 MHz GBW, internal node clamped to 0.02..3.28 V
+.subckt OPAm inp inn out
+G1 0 x inp inn 1m
+Rp x 0 100Meg
+Cp x 0 {1/(2*pi*1k*10Meg)}
+Bcl x 0 I=0.1*(max(V(x)-3.28,0)+min(V(x)-0.02,0))
+E1 out 0 x 0 1
+.ends
+
+.model BAT54 D(Is=1e-7 Rs=0.5 N=1.0 Cjo=7p Vj=0.4 M=0.5 Bv=30)
+
+V1 src 0 SIN(0 {amp} 968k)
+Rs src ant {Rant}
+R1 ant 0 1k
+L1 ant n1 15u
+C1 n1 0 1.8n
+
+* Preamp, gain 1 + 10k/1k = 11
+X1 n1 inv o1 OPAm
+R0a1 inv 0 1k
+R0b1 inv o1 10k
+
+* Detector
+D1 o1 det BAT54
+C2 det 0 470p
+R2 det 0 47k
+
+* Second stage, gain 6
+X2 det inv2 o2 OPAm
+R3 inv2 0 1k
+R4 inv2 o2 5k
+
+.step param amp list 1m 5m 20m 100m
+.tran 0 300u 0 50n
+.end

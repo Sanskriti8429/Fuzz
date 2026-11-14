@@ -1,0 +1,36 @@
+* Fuzz di/dt chain (transient)
+.param Mut=1u
+.param Inorm=14
+.param Ifault=0
+
+* LM358-like: 1 MHz GBW, internal node clamped to the 0.02..1.8 V output range
+.subckt LM358m inp inn out
+G1 0 x inp inn 1m
+Rp x 0 100Meg
+Cp x 0 {1/(2*pi*1k*1Meg)}
+Bcl x 0 I=0.1*(max(V(x)-1.8,0)+min(V(x)-0.02,0))
+E1 out 0 x 0 1
+.ends
+
+Vcc vcc 0 3.3
+
+* Load current (1 V = 1 A): 14 A peak 50 Hz, plus a fast fault ramp at 30 ms
+Bi i 0 V={Inorm}*sin(2*pi*50*time)+if(time>30m, min((time-30m)/50u,1)*Ifault, 0)
+
+* Coil EMF = -Mut * di/dt
+Bemf emf 0 V=-{Mut}*ddt(V(i))
+R_in1 emf m 10k
+
+* U3A leaky integrator
+X1 0 m integ LM358m
+C_int1 m integ 1n
+R_fb1 m integ 1Meg
+
+* U3B comparator, reference 1.65 V from the divider
+R_div1 vcc ref 10k
+R_div2 ref 0 10k
+X2 ref integ dout LM358m
+
+.step param Ifault list 0 50 200
+.tran 0 40m 0 2u
+.end
