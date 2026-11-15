@@ -48,9 +48,9 @@ How the training data is built:
 
 The Ferracuti arc windows contain the absolute value of the current, not a signed waveform, so the arc classifier uses them as they are and they do not pass through the sensor simulation.
 
-Models so far: Random Forest and XGBoost. Still to compare: a 1D CNN, a ROCKET-type model, a CNN-Transformer, and a multi-task model that outputs fault state, appliances and distance together.
+Random Forest and XGBoost were evaluated, and a Random Forest is the model deployed in the backend. The data set is small (about 1,300 appliance records from 16 houses), which favours classical models on hand-made shape features over deep networks. Deep models (1D CNN, ROCKET, CNN-Transformer) were not compared and are listed under [Future work](#future-work).
 
-Also planned: a channel ablation (retrain with each sensor removed to show what each one contributes), SHAP explanations for each alert, and alert thresholds that treat false alarms as more costly than missed warnings.
+A channel ablation of the fusion rule is done (see [Results](#results)). SHAP explanations for each alert and alert thresholds that treat false alarms as more costly than missed warnings are future work.
 
 The four-channel fusion itself is rule-based, because no public dataset contains all the sensor signals together.
 
@@ -151,11 +151,11 @@ requirements.txt  Python packages
 - [x] Analog stages simulated in SPICE and component values confirmed
 - [x] Arc datasets (Ferracuti, Lorraine) downloaded and explored
 - [x] Cable and arc-source model for the distance data
-- [x] Appliance dataset PLAID downloaded and explored (COOLL pending: password requested)
+- [x] Appliance dataset PLAID downloaded and explored 
 - [x] Arc classifier baseline with same-dataset and cross-dataset evaluation
 - [x] Training-data generation for appliance mixtures, integrator-output features and distance
 - [x] Appliance and distance models evaluated (Random Forest and XGBoost)
-- [ ] Deep models compared (1D CNN, ROCKET, CNN-Transformer)
+- [x] Channel ablation of the fusion rule
 - [x] ESP32 simulator and backend telemetry endpoint
 - [x] ESP32 firmware (fusion, trip latch, telemetry), logic tested against the simulator on a PC
 - [x] Model inference in the backend
@@ -167,12 +167,11 @@ requirements.txt  Python packages
 
 ## Datasets
 
-Datasets are not stored in this repo. They are downloaded locally into `ml/data/`. Ferracuti and Lorraine are CC BY 4.0, so credit the authors. COOLL is CC BY-NC 4.0 (non-commercial use, which this project is). For PLAID, the paper is CC BY 4.0 but the licence of the measurement files is not stated separately. The licence of the TI set is still to be confirmed.
+Datasets are not stored in this repo. They are downloaded locally into `ml/data/`. Ferracuti and Lorraine are CC BY 4.0, so credit the authors. For PLAID, the paper is CC BY 4.0 but the licence of the measurement files is not stated separately. The licence of the TI set is still to be confirmed.
 
 - **Arc faults (main):** Ferracuti et al., 2025. Series arc current signatures from 13 load types, 230 V / 50 Hz, IEC 62606. Windows of absolute current, 5 to 50 ms at 10 to 100 kHz, with 2, 5 or 14 class labels. [doi.org/10.5281/zenodo.15279701](https://doi.org/10.5281/zenodo.15279701)
 - **Arc faults (cross-dataset test):** Series AC arc fault data from a 230 V / 50 Hz domestic network, University of Lorraine and Huaqiao University. Line current and arc voltage at 1 MS/s for 13 appliance and arc-type recordings. Arc labels come from the arc voltage. [zenodo.org/record/3997337](https://zenodo.org/record/3997337)
 - **Appliance identification (main):** PLAID 2018, 17 appliance types, 1,876 single-appliance and 575 multi-appliance recordings at 30 kHz, recorded on 120 V, 60 Hz mains. Scientific Data, 2020, doi 10.1038/s41597-020-0389-7, data at doi 10.6084/m9.figshare.10084619.
-- **Appliance identification (validation):** COOLL, 42 appliances sampled at 100 kHz. arXiv 1611.05803. Data not yet received.
 - **Optional:** Texas Instruments `ac_arc_fault_log300`, for testing false alarms from masking loads such as dimmers and drills.
 
 No public dataset contains distance, so distance labels come from the simulated cable model.
@@ -186,6 +185,8 @@ No public dataset contains distance, so distance labels come from the simulated 
 - **Appliance identification, several at once (PLAID aggregated, split in blocks of records):** macro F1 0.85 over 13 types. With one appliance running the exact set is right in 98% of windows, with two running 53% (84% of the true appliances are in the top two guesses), and with three running 15% (76% in the top three).
 - **Appliance identification, cross-dataset:** trained only on synthetic mixtures of single-appliance recordings from 2013 to 2014 houses and tested on real 2017 lab mixtures, macro F1 is about 0.40. Lamp, laptop and fridge transfer (F1 0.87, 0.81, 0.62), but air conditioner and fan do not (F1 0.00).
 - **Distance estimate (simulation):** with a single RF band and no calibration the model is barely better than guessing the middle of the circuit (average error 4.1 to 4.9 m against 4.75 m for guessing), with a 90% range 15 to 17 m wide. A second RF band lowers this to 3.5 m in homes that attenuate strongly (1 dB/m of junction and load loss). After a per-home calibration (about 60 labelled events) the error falls to 1.8 m with one band and 0.8 m with two bands at 1 dB/m, and to 3.7 m and 2.3 m at 0.3 dB/m. In homes that attenuate very little (0.1 dB/m) nothing works well.
+
+- **Channel ablation (simulation, fusion rule, 100 runs per case, fault 12 m from the board):** with normal use there were no false alarms with all five channels or with any one removed. Leakage, overheating and a voltage surge are each detected only by their own channel: without it, the fault is never caught. For arc faults all five channels catch 100% of runs, and 79% trip the relay within 60 s with a median warning of 8 s first. Without the RF channel 96% are still caught but the warning time falls to 0 s, so the RF channel is what gives the early warning. Without the di/dt channel 99% are caught but none trip, because at 12 m the RF level alone never reaches its own trip limit. These results show how the rule uses each channel on the simulated scenarios, each of which is built around one main channel. They are not evidence about real sensors.
 
 Windows are labelled as arc when the arc-voltage RMS exceeds 5 V and the appliance is conducting (current RMS above 0.3 A). The 457 arc windows include 47 low-voltage Res7.9A windows (arc voltage up to 5.9 V RMS) whose labels are doubtful and none of which were detected.
 
@@ -213,6 +214,14 @@ The four analog stages were simulated in LTspice (netlists in `hardware/simulati
 - **Firmware not run on hardware.** The fusion and feature logic is tested on a PC against the simulator, but the full firmware has not been built for the board or run on a real ESP32 with real sensors. ADC calibration, the comparator interrupt timing and the Wi-Fi path are untested.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
 - **One appliance at a time.** The deployed appliance model assumes a single running load. The multi-label model for several appliances uses full-current windows and is not connected to the backend.
+
+## Future work
+
+- Compare deep models (1D CNN, ROCKET, CNN-Transformer) with the Random Forest on the appliance task, using the same house-split evaluation.
+- Validate the appliance model on a second independent data set. COOLL could not be obtained (its password was not received), so it was dropped. WHITED (230 V, 50 Hz) is a candidate.
+- SHAP explanations for each alert, and alert thresholds that weigh false alarms against missed warnings.
+- A multi-task model for fault state, appliances and distance together. No public data set contains all three, so this needs data from the device itself.
+- Build the board, measure the sensors, calibrate the firmware constants and compare the real readings with the simulation.
 
 ## Getting started
 

@@ -1,0 +1,242 @@
+[
+  {
+    "scenario": "normal",
+    "removed": null,
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "normal",
+    "removed": "rf",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "normal",
+    "removed": "leak",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "normal",
+    "removed": "didt",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "normal",
+    "removed": "temp",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "normal",
+    "removed": "volt",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "arc",
+    "removed": null,
+    "caught": 1.0,
+    "trip": 0.79,
+    "lead_s": 8.0,
+    "warned_before_trip": 0.8354430379746836
+  },
+  {
+    "scenario": "arc",
+    "removed": "rf",
+    "caught": 0.96,
+    "trip": 0.79,
+    "lead_s": 0.0,
+    "warned_before_trip": 0.25316455696202533
+  },
+  {
+    "scenario": "arc",
+    "removed": "leak",
+    "caught": 1.0,
+    "trip": 0.79,
+    "lead_s": 8.0,
+    "warned_before_trip": 0.8354430379746836
+  },
+  {
+    "scenario": "arc",
+    "removed": "didt",
+    "caught": 0.99,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "arc",
+    "removed": "temp",
+    "caught": 1.0,
+    "trip": 0.79,
+    "lead_s": 8.0,
+    "warned_before_trip": 0.8354430379746836
+  },
+  {
+    "scenario": "arc",
+    "removed": "volt",
+    "caught": 1.0,
+    "trip": 0.79,
+    "lead_s": 8.0,
+    "warned_before_trip": 0.8354430379746836
+  },
+  {
+    "scenario": "leakage",
+    "removed": null,
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 4.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "leakage",
+    "removed": "rf",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 4.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "leakage",
+    "removed": "leak",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "leakage",
+    "removed": "didt",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 4.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "leakage",
+    "removed": "temp",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 4.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "leakage",
+    "removed": "volt",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 4.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "overheat",
+    "removed": null,
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 5.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "overheat",
+    "removed": "rf",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 5.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "overheat",
+    "removed": "leak",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 5.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "overheat",
+    "removed": "didt",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 5.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "overheat",
+    "removed": "temp",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "overheat",
+    "removed": "volt",
+    "caught": 1.0,
+    "trip": 1.0,
+    "lead_s": 5.0,
+    "warned_before_trip": 1.0
+  },
+  {
+    "scenario": "surge",
+    "removed": null,
+    "caught": 1.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "surge",
+    "removed": "rf",
+    "caught": 1.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "surge",
+    "removed": "leak",
+    "caught": 1.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "surge",
+    "removed": "didt",
+    "caught": 1.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "surge",
+    "removed": "temp",
+    "caught": 1.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  },
+  {
+    "scenario": "surge",
+    "removed": "volt",
+    "caught": 0.0,
+    "trip": 0.0,
+    "lead_s": NaN,
+    "warned_before_trip": NaN
+  }
+]
