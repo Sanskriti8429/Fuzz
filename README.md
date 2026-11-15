@@ -12,6 +12,16 @@ Fuzz is a low-cost, multi-sensor early-warning device for electrical faults in h
 
 https://github.com/user-attachments/assets/3d3f2c7f-a6ce-4c80-8116-754e27610c98
 
+The main demo above shows the real console and phone app reacting to a simulated arc fault.
+
+### Animated films
+
+Three short animated films explain the idea visually. They are in [`demo/videos/`](demo/videos/). GitHub shows a play button when you open each file. The waveforms, scores and drawn circuit in them are illustrative, and each film says so on screen. Measured results are in [Results](#results).
+
+- [A spark in the wall](demo/videos/spark_in_the_wall.mp4) (52 s): a cutaway house where a loose joint 12 m along the wiring starts to arc. Radio pulses travel back to the board, the phone app goes from calm to warning, and the relay cuts the power.
+- [Inside the board](demo/videos/inside_the_board.mp4) (57 s): the five sensor circuits drawn as a simplified schematic into the ESP32, then a live arc running through them to the warning, the trip, the relay and the buzzer. The full circuit is in the KiCad schematic.
+- [Appliance fingerprints](demo/videos/appliance_fingerprints.mp4) (52 s): how a heater, fan, laptop charger, microwave and hairdryer each draw current in a different shape, how those shapes point to an appliance family, and how a fault gets a distance range rather than one exact spot.
+
 ## Why this project
 
 Most electrical fires start small: a loose terminal that arcs, insulation that slowly leaks, a joint that heats up. Standard MCBs and RCDs look at one signal and act only once the fault is already serious. Fuzz targets the gap between "normal" and "tripped", and tells the homeowner what is causing the threat.
@@ -52,9 +62,9 @@ How the training data is built:
 
 The Ferracuti arc windows contain the absolute value of the current, not a signed waveform, so the arc classifier uses them as they are and they do not pass through the sensor simulation.
 
-Random Forest and XGBoost were evaluated, and a Random Forest is the model deployed in the backend. The data set is small (about 1,300 appliance records from 16 houses), which favours classical models on hand-made shape features over deep networks. Deep models (1D CNN, ROCKET, CNN-Transformer) were not compared and are listed under [Future work](#future-work).
+Random Forest and XGBoost were evaluated, and a Random Forest is the model deployed in the backend. The data set is small (about 1,300 appliance records from 16 houses), which favours classical models on hand-made shape features over deep networks. 
 
-A channel ablation of the fusion rule is done (see [Results](#results)). SHAP explanations for each alert and alert thresholds that treat false alarms as more costly than missed warnings are future work.
+A channel ablation of the fusion rule is done (see [Results](#results)).
 
 The four-channel fusion itself is rule-based, because no public dataset contains all the sensor signals together.
 
@@ -142,7 +152,8 @@ ml/
 backend/          Flask server: telemetry in, model inference, demo runner, serves the apps
   models/         Saved models (created by ml/train_models.py)
 dashboard/        Operator console (console.*) and client phone app (app.*)
-demo/             ESP32 simulator, demo video scripts
+demo/             ESP32 simulator, demo video script
+  videos/         Animated explainer films (three .mp4 files)
 docs/             Calculations report, schematic PDF
 requirements.txt  Python packages
 ```
@@ -166,7 +177,7 @@ requirements.txt  Python packages
 - [x] Operator console and client phone app
 - [ ] Calculations report
 - [x] Demo scenarios runnable from the console
-- [ ] Demo video
+- [x] Demo video and animated films
 
 ## Datasets
 
@@ -205,7 +216,7 @@ The four analog stages were simulated in LTspice (netlists in `hardware/simulati
 ## Limitations
 
 - **Simulation only.** Nothing has been built or measured. Circuit values are confirmed by simulation, not on hardware.
-- **Distance is simulated.** Distance labels come from a cable model, so accuracy is only as good as that model. Real wiring has junctions, branches and other loads. Distance is reported as a probable range, and field validation is future work.
+- **Distance is simulated.** Distance labels come from a cable model, so accuracy is only as good as that model. Real wiring has junctions, branches and other loads. Distance is reported as a probable range.
 - **Distance is coarse without calibration.** Cable loss alone carries almost no distance information at 1 MHz, so the estimate relies on junction and load losses that vary from home to home. All cable, source and installation parameters are assumptions, not measurements. A second RF band is proposed as a hardware extension but is not in the current schematic.
 - **Appliance guesses are probabilities.** With several appliances running, one can mask another. Results are reported with confidence and a confusion matrix.
 - **Appliance identity is device-specific.** Models recognise appliance families well but do not reliably recognise unseen individual devices. A deployed unit would need to learn each household's appliances. PLAID is also recorded on 120 V, 60 Hz mains, not 230 V, 50 Hz.
@@ -217,14 +228,6 @@ The four analog stages were simulated in LTspice (netlists in `hardware/simulati
 - **Firmware not run on hardware.** The fusion and feature logic is tested on a PC against the simulator, but the full firmware has not been built for the board or run on a real ESP32 with real sensors. ADC calibration, the comparator interrupt timing and the Wi-Fi path are untested.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
 - **One appliance at a time.** The deployed appliance model assumes a single running load. The multi-label model for several appliances uses full-current windows and is not connected to the backend.
-
-## Future work
-
-- Compare deep models (1D CNN, ROCKET, CNN-Transformer) with the Random Forest on the appliance task, using the same house-split evaluation.
-- Validate the appliance model on a second independent data set. COOLL could not be obtained (its password was not received), so it was dropped. WHITED (230 V, 50 Hz) is a candidate.
-- SHAP explanations for each alert, and alert thresholds that weigh false alarms against missed warnings.
-- A multi-task model for fault state, appliances and distance together. No public data set contains all three, so this needs data from the device itself.
-- Build the board, measure the sensors, calibrate the firmware constants and compare the real readings with the simulation.
 
 ## Getting started
 
