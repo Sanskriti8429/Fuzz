@@ -163,7 +163,6 @@ requirements.txt  Python packages
 - [ ] Calculations report
 - [x] Demo scenarios runnable from the console
 - [ ] Demo video
-- [ ] Firmware run on a real ESP32 and sensors
 
 ## Datasets
 
