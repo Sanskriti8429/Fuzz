@@ -8,6 +8,8 @@ Fuzz is a low-cost, multi-sensor early-warning device for electrical faults in h
 
 ---
 
+<video src="demo/fuzz_demo.mp4" controls width="100%"></video>
+
 ## Why this project
 
 Most electrical fires start small: a loose terminal that arcs, insulation that slowly leaks, a joint that heats up. Standard MCBs and RCDs look at one signal and act only once the fault is already serious. Fuzz targets the gap between "normal" and "tripped", and tells the homeowner what is causing the threat.
