@@ -97,7 +97,7 @@ lock = threading.Lock()
 def ingest(r):
     uid = r["unit_id"]
     state = r.get("state", "NORMAL")
-    live = r.get("volt", 0) > 0
+    live = r.get("volt", 0) > 0 and r.get("relay") != "OPEN"
     with lock:
         if live:
             last_live[uid] = dict(ai=infer(r), reason=dominant_channel(r))

@@ -20,4 +20,4 @@ ml/figures/
 tempCodeRunnerFile.py
 .ruff_cache/
 .mypy_cache/
-.pytest_cache/
+.pytest_cache/firmware/host_test/*.exe
