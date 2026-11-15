@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuzz console</title>
+<link rel="stylesheet" href="/s/console.css">
+</head>
+<body data-state="idle">
+<header class="bar">
+  <span class="brand">fuzz<span class="sl">/</span>console</span>
+  <select id="unit" aria-label="Unit"></select>
+  <span class="grow"></span>
+  <form class="cmd" id="cmd" autocomplete="off">
+    <select id="scn" aria-label="Scenario"></select>
+    <span id="arcOpts" class="arc">
+      <select id="app" aria-label="Appliance on the circuit"></select>
+      <label>fault at <input id="dist" type="number" min="1" max="20" step="1" value="10"> m</label>
+    </span>
+    <button class="btn go" type="submit">Run</button>
+    <button class="btn" id="stop" type="button">Stop</button>
+    <button class="btn" id="reset" type="button">Reset</button>
+  </form>
+  <button class="btn" id="more" type="button" aria-expanded="false">Details</button>
+</header>
+
+<main>
+  <section class="hero" aria-live="polite">
+    <span id="pill" class="pill">no data</span>
+    <h1 id="title">Waiting for the circuit</h1>
+    <p id="sub">Press Run to start a demo, or connect the ESP32.</p>
+  </section>
+
+  <section class="stage">
+    <svg id="circuit" viewBox="0 0 1200 320" role="img" aria-label="Live diagram of the circuit from the distribution board to the appliance">
+      <rect class="board" x="20" y="20" width="280" height="280" rx="14"/>
+      <text class="cap" x="42" y="56">Distribution board</text>
+      <g id="rows"></g>
+
+      <!-- wire from board to appliance -->
+      <line class="wire" x1="300" y1="165" x2="330" y2="165"/>
+      <g id="relay">
+        <circle class="term" cx="330" cy="165" r="5"/>
+        <circle class="term" cx="390" cy="165" r="5"/>
+        <line id="lever" class="lever" x1="330" y1="165" x2="386" y2="165"/>
+      </g>
+      <text id="relayTxt" class="small" x="360" y="198" text-anchor="middle">relay closed</text>
+      <line class="wire" id="wire" x1="390" y1="165" x2="1040" y2="165"/>
+      <line class="flow" id="flow" x1="390" y1="165" x2="1040" y2="165"/>
+
+      <!-- appliance -->
+      <g id="appliance" transform="translate(1040,105)">
+        <rect class="appbox" x="0" y="0" width="140" height="120" rx="12"/>
+        <g id="appIcon" transform="translate(70,60)"></g>
+      </g>
+      <text id="appName" class="lbl" x="1110" y="288" text-anchor="middle"></text>
+      <text id="appSub" class="small" x="1110" y="308" text-anchor="middle"></text>
+
+      <!-- distance ruler -->
+      <line class="ruler" x1="410" y1="232" x2="1020" y2="232"/>
+      <g id="ticks"></g>
+      <rect id="band" class="band" x="0" y="222" width="0" height="20" rx="4" visibility="hidden"/>
+
+      <!-- fault -->
+      <g id="fault" visibility="hidden">
+        <line id="drop" class="drop" x1="0" y1="165" x2="0" y2="222"/>
+        <circle id="pulse" class="pulse" cx="0" cy="165" r="12"/>
+        <circle id="dot" class="faultdot" cx="0" cy="165" r="8"/>
+        <g id="sparks"></g>
+        <text id="faultTxt" class="faulttxt" x="0" y="124" text-anchor="middle"></text>
+      </g>
+      <text id="rangeTxt" class="small" x="0" y="302" text-anchor="middle"></text>
+    </svg>
+  </section>
+
+  <section class="time">
+    <div class="time-head"><span id="timeLabel">Live</span><span id="replayHint" class="dim">drag to look back</span><button id="goLive" class="btn" hidden>Back to live</button></div>
+    <canvas id="tl" aria-label="Fault risk over time"></canvas>
+  </section>
+</main>
+
+<aside id="drawer" class="drawer" hidden>
+  <div class="d-head"><b>Details</b><button class="btn" id="closeMore" type="button">Close</button></div>
+  <h2>Fusion rule</h2>
+  <ul class="rules" id="rules"></ul>
+  <h2>Simulator truth</h2>
+  <pre id="truth" class="kvpre"></pre>
+  <h2>Packet</h2>
+  <pre id="raw" class="json"></pre>
+</aside>
+
+<script src="/s/common.js"></script>
+<script src="/s/console.js"></script>
+</body>
+</html>

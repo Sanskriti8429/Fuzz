@@ -83,12 +83,12 @@ def write_message(state, reason, ai):
 
 @app.get("/")
 def operator_page():
-    return send_from_directory(DASH, "operator.html")
+    return send_from_directory(DASH, "console.html")
 
 
 @app.get("/client")
 def client_page():
-    return send_from_directory(DASH, "client.html")
+    return send_from_directory(DASH, "app.html")
 
 
 lock = threading.Lock()

@@ -1,0 +1,97 @@
+/* Fuzz console: one live circuit diagram, one timeline, details on request. */
+:root {
+  --bg: #17191e; --panel: #1e2127; --panel2: #262a32; --line: #343a45;
+  --text: #dde1e8; --dim: #8a93a2; --faint: #555d6a;
+  --ok: #7cc4a4; --warn: #e8b64f; --trip: #f07178; --sel: #8fb3ff;
+  --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --state: var(--dim);
+}
+body[data-state="NORMAL"] { --state: var(--ok); }
+body[data-state="WARNING"] { --state: var(--warn); }
+body[data-state="TRIP"] { --state: var(--trip); }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--mono); min-height: 100vh; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.dim { color: var(--dim); }
+
+.bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 28px; }
+.brand { font-weight: 700; }
+.brand .sl { color: var(--faint); }
+.grow { flex: 1; }
+.cmd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; }
+.arc { display: inline-flex; gap: 10px; align-items: center; }
+.arc[hidden] { display: none; }
+.cmd label { color: var(--dim); display: inline-flex; gap: 6px; align-items: center; }
+select, input { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; }
+input { width: 56px; }
+.btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 14px; cursor: pointer; }
+.btn:hover { border-color: var(--dim); }
+.btn.go { background: var(--ok); border-color: var(--ok); color: #101216; font-weight: 700; }
+
+main { max-width: 1280px; margin: 0 auto; padding: 8px 28px 32px; }
+.hero { padding: 18px 0 6px; min-height: 150px; }
+.pill { display: inline-block; padding: 1px 12px; border: 1px solid var(--state); color: var(--state); border-radius: 99px; font-weight: 700; font-size: 13px; }
+h1 { margin: 12px 0 4px; font-size: clamp(24px, 3.2vw, 40px); line-height: 1.15; letter-spacing: -.02em; }
+.hero p { margin: 0; color: var(--dim); font-size: 16px; max-width: 70ch; }
+
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px 10px; margin-top: 14px; }
+svg { width: 100%; height: auto; display: block; }
+svg text { font-family: var(--mono); }
+.board { fill: var(--panel2); stroke: var(--line); stroke-width: 1.5; }
+.cap { fill: var(--dim); font-size: 15px; }
+.lbl { fill: var(--text); font-size: 17px; }
+.val { fill: var(--text); font-size: 18px; font-weight: 700; }
+.small { fill: var(--dim); font-size: 14px; }
+.lamp { fill: var(--faint); }
+.lamp.ok { fill: var(--ok); } .lamp.warn { fill: var(--warn); } .lamp.trip { fill: var(--trip); }
+.row.flag .lbl, .row.flag .val { fill: var(--state); }
+
+.wire { stroke: var(--line); stroke-width: 7; stroke-linecap: round; }
+.flow { stroke: var(--state); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 2 20; opacity: .95; animation: flow var(--dur, 1.2s) linear infinite; }
+body[data-state="TRIP"] .flow, body[data-state="idle"] .flow { opacity: 0; }
+@keyframes flow { to { stroke-dashoffset: -22; } }
+.term { fill: var(--panel); stroke: var(--dim); stroke-width: 2.5; }
+.lever { stroke: var(--text); stroke-width: 4; stroke-linecap: round; transform-origin: 330px 165px; transition: transform .45s cubic-bezier(.3,1.5,.5,1); }
+.lever.open { transform: rotate(-26deg); stroke: var(--trip); }
+
+.appbox { fill: var(--panel2); stroke: var(--line); stroke-width: 1.5; }
+.appbox.on { stroke: var(--state); }
+.ic { fill: none; stroke: var(--dim); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.appbox.on + g .ic, #appIcon.on .ic { stroke: var(--text); }
+
+.ruler { stroke: var(--faint); stroke-width: 2; }
+.tick { stroke: var(--faint); stroke-width: 2; }
+.band { fill: var(--state); opacity: .28; stroke: var(--state); stroke-width: 1.5; }
+.drop { stroke: var(--state); stroke-width: 2; stroke-dasharray: 4 5; }
+.faultdot { fill: var(--state); }
+.pulse { fill: none; stroke: var(--state); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: pulse 1.4s ease-out infinite; }
+.faulttxt { fill: var(--state); font-size: 20px; font-weight: 700; }
+.spark { stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; opacity: 0; animation: zap 0.9s steps(1) infinite; }
+body[data-state="TRIP"] .spark, body[data-state="TRIP"] .pulse { animation: none; opacity: 0; }
+@keyframes pulse { from { transform: scale(.6); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+@keyframes zap { 0% { opacity: 0; } 12% { opacity: 1; } 28% { opacity: 0; } 55% { opacity: .9; } 66% { opacity: 0; } }
+
+.time { margin-top: 18px; }
+.time-head { display: flex; gap: 16px; align-items: center; min-height: 32px; }
+#timeLabel { font-weight: 700; }
+#replayHint { margin-left: auto; font-size: 13px; }
+#goLive { margin-left: auto; }
+#goLive:not([hidden]) + * { }
+canvas { width: 100%; height: 110px; display: block; cursor: ew-resize; touch-action: none; }
+
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100vw); background: var(--panel); border-left: 1px solid var(--line); padding: 16px 18px; overflow: auto; z-index: 10; box-shadow: -20px 0 40px rgba(0,0,0,.35); }
+.drawer[hidden] { display: none; }
+.d-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+h2 { font-size: 13px; color: var(--dim); font-weight: 500; margin: 20px 0 8px; }
+pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; }
+.kvpre { color: var(--dim); } .kvpre b { color: var(--text); font-weight: 500; }
+.json { color: var(--dim); } .json .k { color: #9aa7ba; } .json .s { color: #c9a97c; } .json .n { color: var(--sel); } .json .b { color: var(--ok); }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rules li { display: grid; grid-template-columns: 12px 1fr; gap: 10px; color: var(--dim); font-size: 13px; }
+.rules .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); margin-top: 6px; }
+.rules li.on { color: var(--text); } .rules li.on .dot { background: var(--warn); } .rules li.trip.on .dot { background: var(--trip); }
+
+@media (prefers-reduced-motion: reduce) { .flow, .pulse, .spark { animation: none; } }
+@media (max-width: 760px) { .bar, main { padding-left: 14px; padding-right: 14px; } .lbl { font-size: 19px; } .small { font-size: 16px; } }
