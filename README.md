@@ -24,7 +24,7 @@ Four warning channels and one supply-monitoring channel feed a single ESP32:
 
 ## Detection logic
 
-Two tiers, evaluated on the ESP32 (implemented so far in the simulator, firmware pending):
+Two tiers, evaluated on the ESP32 (implemented in the simulator and in the ESP32 firmware; the firmware logic is checked against the simulator but has not run on a board yet):
 
 - **WARNING (predictive):** two or more channels are raised at the same time, meaning each averages above about a third of its limit over the last five readings. A single channel above 80% of its limit, or mains voltage outside plus or minus 10%, also warns. A warning is held for 10 seconds so it does not flicker. The user is notified and nothing is cut.
 - **TRIP (protective):** a hard limit is crossed, or the di/dt comparator fires. The relay module opens the supply immediately, without depending on Wi-Fi or the server.
@@ -87,8 +87,8 @@ flowchart TB
   end
   subgraph Apps["Apps (HTML and JavaScript)"]
     direction LR
-    OP["Operator dashboard"]
-    CL["Client mobile view"]
+    OP["Operator console"]
+    CL["Client phone app"]
   end
   ESP -->|"Wi-Fi, JSON every second"| API
   MSG --> OP
@@ -112,14 +112,18 @@ flowchart LR
   A1["Ferracuti, Lorraine<br/>arc currents"] --> A2["Arc classifier<br/>evaluated, not deployed"]
 ```
 
-## Operator dashboard and client app
+## Operator console and client app
 
-Planned, built in plain HTML and JavaScript:
+Both are built in plain HTML, CSS and JavaScript and are served by the Flask backend.
 
-- **Operator dashboard:** live status of every unit, the sensor readings over time, model outputs with confidence, alert history and settings.
-- **Client mobile view:** a simple risk indicator, a plain-language message such as "arc activity, likely heating appliance, about 10 m away (range 6 to 14 m)", notifications and advice.
+- **Operator console** (`/`, for a laptop): one live diagram of the circuit, from the distribution board and relay along the wire to the appliance. The relay flips open on a trip, current flows along the wire while it is live, and for an arc fault a marker appears on the wire at the estimated distance with the 90% range shaded on a 0 to 20 m ruler. Below it is one timeline that can be dragged to replay the past. A "Details" button shows the fusion rules, the simulator's true values and the raw packet. The same row of controls runs the demo scenarios.
+- **Client phone app** (`/client`, designed for a phone): a soft orb that is calm when all is well, ripples in a warning and goes still after a trip, with a plain-language message such as "arc activity, likely heating appliance, about 10 m away (range 6 to 14 m)", a Sensors page and a History page that replays the past through the orb. On a laptop the same page switches to a side-by-side layout. To see the phone layout on a laptop, open browser developer tools (F12) and turn on device mode (Ctrl+Shift+M).
 
-Until hardware exists, a simulator script plays the ESP32's role and sends scenarios (normal use, an arc at a given distance, rising leakage, overheating, a voltage surge) to the backend.
+Until hardware exists, a demo runner inside the backend plays the ESP32's role and sends scenarios (normal use, an arc at a given distance, rising leakage, overheating, a voltage surge). The same simulator is also available as a command-line script.
+
+## ESP32 firmware
+
+`firmware/` is an Arduino-framework PlatformIO project for the ESP32. The comparator interrupt opens the relay without waiting for any other code. The trip latch is stored in flash and cleared by sending `r` over the serial port. A network task on the second core sends the JSON readings to the backend. The fusion rule is the same as in the simulator, and `firmware/host_test/compare.py` checks that the two give identical results on the same inputs. Pin numbers and calibration constants are in `firmware/include/config.h`; the calibration constants are placeholders until the sensors are measured.
 
 ## Repository structure
 
@@ -127,12 +131,13 @@ Until hardware exists, a simulator script plays the ESP32's role and sends scena
 hardware/
   kicad/          Full-system schematic (KiCad), exported PDF, BOM
   simulation/     SPICE simulations of the analog stages
-firmware/         ESP32 fusion and trip logic (planned)
+firmware/         ESP32 firmware (PlatformIO): fusion, trip latch, telemetry, host tests
 ml/
   data/           Datasets (downloaded locally, not committed)
-  *.py            Exploration, feature extraction, baselines, simulations
-backend/          Flask server: telemetry in, readings out (model inference planned)
-dashboard/        Operator dashboard and client view (planned)
+  *.py            Exploration, feature extraction, baselines, simulations, train_models.py
+backend/          Flask server: telemetry in, model inference, demo runner, serves the apps
+  models/         Saved models (created by ml/train_models.py)
+dashboard/        Operator console (console.*) and client phone app (app.*)
 demo/             ESP32 simulator, demo video scripts
 docs/             Calculations report, schematic PDF
 requirements.txt  Python packages
@@ -152,11 +157,13 @@ requirements.txt  Python packages
 - [x] Appliance and distance models evaluated (Random Forest and XGBoost)
 - [ ] Deep models compared (1D CNN, ROCKET, CNN-Transformer)
 - [x] ESP32 simulator and backend telemetry endpoint
-- [ ] ESP32 firmware fusion logic
+- [x] ESP32 firmware (fusion, trip latch, telemetry), logic tested against the simulator on a PC
 - [x] Model inference in the backend
-- [x] Operator dashboard and client view
+- [x] Operator console and client phone app
 - [ ] Calculations report
+- [x] Demo scenarios runnable from the console
 - [ ] Demo video
+- [ ] Firmware run on a real ESP32 and sensors
 
 ## Datasets
 
@@ -203,6 +210,7 @@ The four analog stages were simulated in LTspice (netlists in `hardware/simulati
 - **Rule-based fusion.** Fusion thresholds come from calculation and simulation, not from field data.
 - **Single-channel current classifiers did not transfer well across datasets.** This motivates, but does not yet prove, the multi-sensor approach.
 - **Simulation assumptions.** The antenna source impedance, the di/dt coil inductance and the NTC beta (3950) are assumed, not measured. The RF channel has no high-pass, so mains pickup is amplified. The leakage rectifier does not hold a DC level, so the firmware samples the waveform instead. The di/dt trip has only about four times margin over normal load, so dimmers and motor starts may need extra handling.
+- **Firmware not run on hardware.** The fusion and feature logic is tested on a PC against the simulator, but the full firmware has not been built for the board or run on a real ESP32 with real sensors. ADC calibration, the comparator interrupt timing and the Wi-Fi path are untested.
 - **Not a certified device.** This is an educational prototype and must not be used as a safety product.
 - **One appliance at a time.** The deployed appliance model assumes a single running load. The multi-label model for several appliances uses full-current windows and is not connected to the backend.
 
@@ -216,15 +224,23 @@ pip install -r requirements.txt
 
 ## Running the demo
 
-In one terminal start the backend, and in a second terminal start the simulator:
+Train and save the models first (this creates `backend/models/`):
+
+```
+python ml\train_models.py
+```
+
+Start the backend, then open the two pages in a browser:
 
 ```
 python backend\app.py
-python demo\simulator.py arc --distance 10 --interval 0.2
 ```
 
-The scenarios are `normal`, `arc`, `leakage`, `overheat` and `surge`. Readings are available at `http://127.0.0.1:5000/api/units`.
+- `http://127.0.0.1:5000/` is the operator console. Choose a scenario in the top row and press Run. Scenarios are normal use, arc fault, leakage, overheating and voltage surge. For an arc fault you can also choose the appliance on the circuit and the distance of the fault.
+- `http://127.0.0.1:5000/client` is the phone app. Open it next to the console to watch both react to the same run.
 
-Train and save the models first (`python ml\train_models.py`). The simulator takes `--appliance` (for example `hairdryer`, `fan`, `laptop`), and the backend returns a plain-language message with the likely appliance family and a distance range.
+The command-line simulator still works for testing, and its readings are available at `http://127.0.0.1:5000/api/units`:
 
-Start the backend with `python backend\app.py`, then open `http://127.0.0.1:5000/` (operator dashboard) and `http://127.0.0.1:5000/client` (client view). Use the "Run a demo" panel on the operator page to start a scenario. The command-line simulator (`python demo\simulator.py arc --distance 10 --appliance hairdryer`) still works for testing.
+```
+python demo\simulator.py arc --distance 10 --appliance hairdryer
+```
