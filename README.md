@@ -10,7 +10,7 @@ Fuzz is a low-cost, multi-sensor early-warning device for electrical faults in h
 
 ## Project Demo
 
-https://github.com/Sanskriti8429/Fuzz/blob/main/demo/fuzz_demo.mp4
+https://github.com/user-attachments/assets/3d3f2c7f-a6ce-4c80-8116-754e27610c98
 
 ## Why this project
 
