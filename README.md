@@ -186,7 +186,6 @@ Datasets are not stored in this repo. They are downloaded locally into `ml/data/
 - **Arc faults (main):** Ferracuti et al., 2025. Series arc current signatures from 13 load types, 230 V / 50 Hz, IEC 62606. Windows of absolute current, 5 to 50 ms at 10 to 100 kHz, with 2, 5 or 14 class labels. [doi.org/10.5281/zenodo.15279701](https://doi.org/10.5281/zenodo.15279701)
 - **Arc faults (cross-dataset test):** Series AC arc fault data from a 230 V / 50 Hz domestic network, University of Lorraine and Huaqiao University. Line current and arc voltage at 1 MS/s for 13 appliance and arc-type recordings. Arc labels come from the arc voltage. [zenodo.org/record/3997337](https://zenodo.org/record/3997337)
 - **Appliance identification (main):** PLAID 2018, 17 appliance types, 1,876 single-appliance and 575 multi-appliance recordings at 30 kHz, recorded on 120 V, 60 Hz mains. Scientific Data, 2020, doi 10.1038/s41597-020-0389-7, data at doi 10.6084/m9.figshare.10084619.
-- **Optional:** Texas Instruments `ac_arc_fault_log300`, for testing false alarms from masking loads such as dimmers and drills.
 
 No public dataset contains distance, so distance labels come from the simulated cable model.
 
