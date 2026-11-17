@@ -162,7 +162,7 @@ docs/             Calculations report
 requirements.txt  Python packages
 ```
 
-## Status
+## Status [completed]
 
 - [x] Sensing strategy and system design
 - [x] Full-system schematic in KiCad (ERC run, 0 violations, with some checks ignored)
