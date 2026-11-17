@@ -8,3 +8,4 @@ jupyter
 h5py
 flask
 joblib
+imageio-ffmpeg

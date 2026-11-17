@@ -32,12 +32,17 @@ class Fusion {
     head_ = (head_ + 1) % WINDOW;
     if (n_ < WINDOW) n_++;
 
-    int raised = 0;
+    float avg[NCH];
     for (int c = 0; c < NCH; c++) {
       float sum = 0;
       for (int i = 0; i < n_; i++) sum += win_[i][c];     // the buffer holds the last n_ values (order does not matter for a mean)
-      if (sum / n_ >= WARN_AVG) raised++;
+      avg[c] = sum / n_;
     }
+    // di/dt never acts alone: real motors and dimmers make fast current steps all the time (COOLL dataset),
+    // so it counts only while rf, leakage or temperature is also raised on average.
+    if (!(avg[0] >= WARN_AVG || avg[1] >= WARN_AVG || avg[3] >= WARN_AVG)) { now[2] = 0.0f; avg[2] = 0.0f; }
+    int raised = 0;
+    for (int c = 0; c < NCH; c++) if (avg[c] >= WARN_AVG) raised++;
     float mx = now[0];
     bool anyTrip = false;
     for (int c = 0; c < NCH; c++) {

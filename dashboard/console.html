@@ -13,10 +13,8 @@
   <span class="grow"></span>
   <form class="cmd" id="cmd" autocomplete="off">
     <select id="scn" aria-label="Scenario"></select>
-    <span id="arcOpts" class="arc">
-      <select id="app" aria-label="Appliance on the circuit"></select>
-      <label>fault at <input id="dist" type="number" min="1" max="20" step="1" value="10"> m</label>
-    </span>
+    <select id="app" aria-label="Appliance on the circuit"></select>
+    <label id="distBox" title="Where the arc is. Fuzz estimates this from the arc radio noise.">fault at <input id="dist" type="number" min="1" max="20" step="1" value="10"> m</label>
     <button class="btn go" type="submit">Run</button>
     <button class="btn" id="stop" type="button">Stop</button>
     <button class="btn" id="reset" type="button">Reset</button>

@@ -35,7 +35,7 @@ def reference_states(scenario, seed, distance):
 def main():
     exe = build("fusion_test")
     bad = total = 0
-    for scenario in ["normal", "arc", "leakage", "overheat", "surge"]:
+    for scenario in ["normal", "arc", "leakage", "overheat", "surge", "motor"]:
         for seed in range(40):
             rows, ref = reference_states(scenario, seed, random.Random(seed).uniform(1, 20))
             out = subprocess.run([exe], input="\n".join(rows), capture_output=True, text=True).stdout.split()

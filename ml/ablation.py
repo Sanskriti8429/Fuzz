@@ -26,6 +26,8 @@ def fuse(r, window, tripped, off):
             now[c] = 0.0                                       # a missing channel contributes nothing
     window.append(now)
     avg = {k: sum(w[k] for w in window) / len(window) for k in now}
+    if not any(avg[k] >= sim.WARN_AVG for k in ("rf", "leak", "temp")):      # di/dt never acts alone
+        now, avg = {**now, "didt": 0.0}, {**avg, "didt": 0.0}
     volt_bad = "volt" not in off and not (sim.V_MIN <= r["volt"] <= sim.V_MAX)
     if tripped or any(s >= 1.0 for s in now.values()):
         return "TRIP"
@@ -57,10 +59,10 @@ def one_run(scenario, off, seed):
 
 rows = []
 print(f"{RUNS} runs per cell, fault {DISTANCE:.0f} m away, {DURATION} s per run. 'caught' = warning or trip, 'trip' = relay opened.\n")
-for scenario in ["normal"] + SCENARIOS:
+for scenario in ["normal", "motor"] + SCENARIOS:
     print(scenario)
     for off in [()] + [(c,) for c in CHANNELS]:
-        res = [one_run(scenario, off, 1000 * (["normal"] + SCENARIOS).index(scenario) + i) for i in range(RUNS)]
+        res = [one_run(scenario, off, 1000 * (["normal", "motor"] + SCENARIOS).index(scenario) + i) for i in range(RUNS)]
         caught = np.mean([w is not None for w, _ in res])
         trip = np.mean([t is not None for _, t in res])
         leads = [t - w for w, t in res if w is not None and t is not None]
@@ -68,7 +70,7 @@ for scenario in ["normal"] + SCENARIOS:
         lead = float(np.median(leads)) if leads else float("nan")
         label = "all five channels" if not off else f"without {off[0]}"
         rows.append(dict(scenario=scenario, removed=off[0] if off else None, caught=caught, trip=trip, lead_s=lead, warned_before_trip=warned_first))
-        if scenario == "normal":
+        if scenario in ("normal", "motor"):
             print(f"  {label:20s} false alarms in {caught*100:4.0f}% of runs")
         else:
             lead_txt = f"{lead:4.0f} s median warning before the trip" if leads else "no trip"

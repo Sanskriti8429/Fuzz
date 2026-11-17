@@ -95,3 +95,6 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
 
 @media (prefers-reduced-motion: reduce) { .flow, .pulse, .spark { animation: none; } }
 @media (max-width: 760px) { .bar, main { padding-left: 14px; padding-right: 14px; } .lbl { font-size: 19px; } .small { font-size: 16px; } }
+
+
+#distBox[hidden] { display: none; }

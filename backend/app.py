@@ -132,7 +132,7 @@ _spec = importlib.util.spec_from_file_location("fuzz_sim", os.path.join(HERE, ".
 sim = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sim)
 
-SCENARIOS = ["normal", "arc", "leakage", "overheat", "surge"]
+SCENARIOS = ["normal", "arc", "leakage", "overheat", "surge", "motor"]
 DEMO_UNIT = "fuzz-01"
 run_state = dict(running=False, t=0, duration=60, scenario=None, stop=None, thread=None)
 

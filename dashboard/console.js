@@ -132,6 +132,8 @@ function ruleList(hist, r) {
   const sc = x => ({ rf: x.rf / 0.8, leak: x.leak_ma / 30, didt: x.didt, temp: (x.temp_c - 40) / 40 });
   const now = sc(r), avg = {};
   Object.keys(now).forEach(k => avg[k] = win.reduce((s, x) => s + sc(x)[k], 0) / win.length);
+  /* di/dt never acts alone: motors and dimmers make fast steps all the time, so it counts only while another channel is raised */
+  if (!["rf", "leak", "temp"].some(k => avg[k] >= 0.35)) { now.didt = 0; avg.didt = 0; }
   const keys = o => Object.keys(o);
   return [
     { cls: "trip", on: keys(now).some(k => now[k] >= 1) || r.relay === "OPEN", t: "A channel reaches its trip limit (or the relay is latched open)" },
@@ -146,12 +148,12 @@ let optsLoaded = false;
 async function loadOptions() {
   try {
     const o = await getJSON("/api/sim/options");
-    $("scn").replaceChildren(...o.scenarios.map(s => new Option(({ normal: "Normal use", arc: "Arc fault", leakage: "Leakage", overheat: "Overheating", surge: "Voltage surge" })[s] || s, s)));
+    $("scn").replaceChildren(...o.scenarios.map(s => new Option(({ normal: "Normal use", arc: "Arc fault", leakage: "Leakage", overheat: "Overheating", surge: "Voltage surge", motor: "Motor load (normal)" })[s] || s, s)));
     $("app").replaceChildren(...o.appliances.map(a => new Option(a, a)));
     $("scn").value = "arc"; syncArc(); optsLoaded = true;
   } catch (e) { /* retried on the next update */ }
 }
-const syncArc = () => { $("arcOpts").hidden = $("scn").value !== "arc"; };
+const syncArc = () => { $("distBox").hidden = $("scn").value !== "arc"; };
 $("scn").onchange = syncArc;
 $("cmd").addEventListener("submit", async e => {
   e.preventDefault(); live.scrub = null;

@@ -36,6 +36,11 @@ def reading(scenario, t, distance):
     elif scenario == "surge":
         if t > 10:
             r["volt"] += 35
+    elif scenario == "motor":
+        # a healthy brushed motor (vacuum cleaner, drill): fast current steps every second or so, no fault.
+        # COOLL: the old trip slope was crossed in 129 of 140 vacuum cleaner recordings.
+        if random.random() < 0.5:
+            r["didt"] += random.uniform(0.4, 1.3)
     return {k: round(v, 3) for k, v in r.items()}
 
 def scores_of(r):
@@ -43,10 +48,15 @@ def scores_of(r):
                 temp=(r["temp_c"] - TEMP_WARN) / (TEMP_TRIP - TEMP_WARN))
 
 def fuse(r, window, tripped):
-    """TRIP on any instantaneous limit; WARNING when two channels are raised on average over the last 5 s."""
+    """TRIP on any instantaneous limit; WARNING when two channels are raised on average over the last 5 s.
+    The di/dt channel never acts alone: it counts only while rf, leakage or temperature is also raised."""
     now = scores_of(r)
     window.append(now)
     avg = {k: sum(w[k] for w in window) / len(window) for k in now}
+    # Real motors and dimmers make fast current steps all the time (COOLL: 305 of 830 normal recordings cross the old
+    # trip slope), so di/dt only counts when another channel is already raised on average.
+    if not any(avg[k] >= WARN_AVG for k in ("rf", "leak", "temp")):
+        now, avg = {**now, "didt": 0.0}, {**avg, "didt": 0.0}
     volt_bad = not (V_MIN <= r["volt"] <= V_MAX)
     if tripped or any(s >= 1.0 for s in now.values()):
         return "TRIP"
@@ -102,7 +112,7 @@ def run(scenario, distance=10.0, appliance="heater", duration=60.0, unit="fuzz-0
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("scenario", choices=["normal", "arc", "leakage", "overheat", "surge"])
+    p.add_argument("scenario", choices=["normal", "arc", "leakage", "overheat", "surge", "motor"])
     p.add_argument("--distance", type=float, default=10.0, help="arc distance in metres (truth, for testing)")
     p.add_argument("--appliance", default="heater", help="what is running on the circuit (prefix of a PLAID type name)")
     p.add_argument("--unit", default="fuzz-01")

@@ -117,7 +117,7 @@ if (MODE === "client") {
 }
 
 /* ---------- demo drawer (operator) ---------- */
-const SCN = [["normal", "Normal use"], ["arc", "Arc fault"], ["leakage", "Leakage"], ["overheat", "Overheating"], ["surge", "Surge"]];
+const SCN = [["normal", "Normal use"], ["arc", "Arc fault"], ["leakage", "Leakage"], ["overheat", "Overheating"], ["surge", "Surge"], ["motor", "Motor load (normal)"]];
 const SPEEDS = [["Quick", 0.4], ["Normal", 0.8], ["Slow", 1.5]];
 let scenario = "arc", interval = 0.4, appliance = "Heater", dist = 10, appliances = [];
 function openDemo() {
