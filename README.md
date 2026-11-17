@@ -4,7 +4,7 @@
 
 Fuzz is a low-cost, multi-sensor early-warning device for electrical faults in homes. It installs at the distribution board and watches a branch circuit through independent sensors. It flags a developing fault early, cuts the supply if it escalates, and uses machine learning to estimate which appliance is likely at risk and roughly how far along the wiring the problem is.
 
-> **Project type:** simulation-based capstone. The schematic is complete in KiCad and its analog stages were checked in SPICE, which changed two component values. The machine-learning models are trained on public datasets passed through simulated sensor and cable models. No hardware has been built or measured. See [Limitations](#limitations).
+> **Project type:** simulation-based. The schematic is complete in KiCad and its analog stages were checked in SPICE, which changed two component values. The machine-learning models are trained on public datasets passed through simulated sensor and cable models. No hardware has been built or measured. See [Limitations](#limitations).
 
 ---
 
@@ -158,7 +158,7 @@ backend/          Flask server: telemetry in, model inference, demo runner, serv
 dashboard/        Operator console (console.*) and client phone app (app.*)
 demo/             ESP32 simulator, demo video script
   videos/         Animated explainer films (three .mp4 files)
-docs/             Calculations report, schematic PDF
+docs/             Calculations report
 requirements.txt  Python packages
 ```
 
@@ -181,8 +181,7 @@ requirements.txt  Python packages
 - [x] Operator console and client phone app
 - [x] Real-appliance current-slope check on COOLL (830 recordings): fixed 16.5 kA/s trip level is too low for motor loads
 - [x] di/dt channel made corroborating only (never trips or warns alone), added to the simulator, firmware, console and ablation, with a motor-load scenario that trips the old rule in 100 of 100 runs and the new rule in none
-- [ ] Calculations report updated with the COOLL measurements
-- [ ] Calculations report
+- [x] Calculations report
 - [x] Demo scenarios runnable from the console
 - [x] Demo video and animated films
 
@@ -194,7 +193,6 @@ Datasets are not stored in this repo. They are downloaded locally into `ml/data/
 - **Arc faults (cross-dataset test):** Series AC arc fault data from a 230 V / 50 Hz domestic network, University of Lorraine and Huaqiao University. Line current and arc voltage at 1 MS/s for 13 appliance and arc-type recordings. Arc labels come from the arc voltage. [zenodo.org/record/3997337](https://zenodo.org/record/3997337)
 - **Appliance identification (main):** PLAID 2018, 17 appliance types, 1,876 single-appliance and 575 multi-appliance recordings at 30 kHz, recorded on 120 V, 60 Hz mains. Scientific Data, 2020, doi 10.1038/s41597-020-0389-7, data at doi 10.6084/m9.figshare.10084619.
 - **Real appliance switching (di/dt check):** COOLL, Picon et al., 2016. 840 single-appliance recordings of 42 appliances of 12 types, current and voltage at 100 kHz, with switch-on and switch-off events at controlled delays. Used only to measure real current slopes (`ml/cooll_didt_check.py`), not for training. Paper: [arxiv.org/abs/1611.05803](https://arxiv.org/abs/1611.05803), data: [coolldataset.github.io](https://coolldataset.github.io).
-- **Optional:** Texas Instruments `ac_arc_fault_log300`, for testing false alarms from masking loads such as dimmers and drills.
 
 No public dataset contains distance, so distance labels come from the simulated cable model.
 
