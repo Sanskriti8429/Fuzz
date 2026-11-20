@@ -10,6 +10,7 @@ import distance_sim
 CACHE = "ml/data/plaid_cycles_sub.npz"
 OUT = "backend/models"
 os.makedirs(OUT, exist_ok=True)
+os.makedirs("ml/results", exist_ok=True)
 rng = np.random.default_rng(1)
 
 z = np.load(CACHE, allow_pickle=True)
@@ -27,6 +28,9 @@ test = np.array([l in test_locs for l in locs])
 
 P = np.array([proxy_wave(c) for c in C])
 X = np.array([shape_features(p) for p in P])
+
+# data for ml/compare.py (the model comparison): same features, same labels, house of each record
+np.savez("ml/results/appliance_xy.npz", X=X, y=np.array(types, dtype=str), groups=np.array(locs, dtype=str))
 
 rf = RandomForestClassifier(n_estimators=300, class_weight="balanced", random_state=0, n_jobs=-1)
 rf.fit(X[~test], y[~test])
@@ -56,6 +60,9 @@ order = rng.permutation(len(yd))
 Xd, yd = Xd[order], yd[order]
 n = len(yd)
 tr, ca, te = slice(0, int(.6 * n)), slice(int(.6 * n), int(.8 * n)), slice(int(.8 * n), n)
+
+# data for ml/compare.py: blocks of 40 consecutive simulated events stay together in one fold
+np.savez("ml/results/distance_xy.npz", X=Xd, y=yd, groups=(np.arange(n) // 40)[order])
 
 dr = RandomForestRegressor(n_estimators=100, min_samples_leaf=30, random_state=0, n_jobs=-1)
 dr.fit(Xd[tr], yd[tr])
